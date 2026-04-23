@@ -1,8 +1,15 @@
-﻿<nav class="app-nav">
+<nav class="app-nav">
   <div class="logo">7 A V L O D</div>
   <div class="nav-links">
     <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">Shajara</a>
     <a routerLink="/admin" routerLinkActive="active">Admin Panel</a>
+    <button class="theme-toggle" (click)="themeService.toggleTheme()" [title]="themeService.isDarkMode() ? 'Kun rejimiga o\'tish' : 'Tun rejimiga o\'tish'">
+      @if (themeService.isDarkMode()) {
+        <span class="icon">☀️</span>
+      } @else {
+        <span class="icon">🌙</span>
+      }
+    </button>
   </div>
 </nav>
 

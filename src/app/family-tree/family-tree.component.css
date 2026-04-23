@@ -36,14 +36,14 @@
   position: absolute;
   top: 0;
   right: 50%;
-  border-top: 2px solid #555; /* Modern, subtle connection line */
+  border-top: 2px solid var(--connector-color);
   width: 50%;
   height: 20px;
 }
 .tree li::after {
   right: auto;
   left: 50%;
-  border-left: 2px solid #555;
+  border-left: 2px solid var(--connector-color);
 }
 
 /* Remove left connector from first child and right connector from last child */
@@ -73,7 +73,7 @@
   position: absolute;
   top: 0;
   left: 50%;
-  border-left: 2px solid #555;
+  border-left: 2px solid var(--connector-color);
   width: 0;
   height: 20px;
 }
@@ -106,18 +106,18 @@
 
 /* Glassmorphism styling */
 .card-glass {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--glass-bg);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--card-shadow);
   padding: 15px 25px;
   border-radius: 15px;
   display: flex;
   flex-direction: column;
   align-items: center;
   min-width: 120px;
-  transition: transform 0.3s ease, box-shadow 0.3s ease, border 0.3s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border 0.3s ease, background 0.3s ease;
 }
 
 .card-glass:hover {
@@ -174,7 +174,7 @@
 .info h3 {
   margin: 0;
   font-size: 14px;
-  color: #fff;
+  color: var(--text-color);
   font-family: 'Inter', sans-serif;
   letter-spacing: 0.5px;
 }
@@ -229,14 +229,14 @@
 }
 
 .glass-panel {
-  background: rgba(30, 30, 46, 0.7);
+  background: var(--panel-bg);
   backdrop-filter: blur(15px);
   -webkit-backdrop-filter: blur(15px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
   border-radius: 20px;
   overflow: hidden;
-  color: #fff;
+  color: var(--text-color);
 }
 
 .close-btn {
@@ -350,5 +350,44 @@
   font-style: italic;
   font-size: 14px;
   margin: 0;
+}
+
+@media (max-width: 768px) {
+  .tree-container {
+    padding: 20px;
+    justify-content: flex-start;
+  }
+  .card-glass {
+    min-width: 90px;
+    padding: 10px;
+  }
+  .image-wrapper {
+    width: 50px;
+    height: 50px;
+    margin-bottom: 5px;
+  }
+  .info h3 {
+    font-size: 12px;
+  }
+  .info .role {
+    font-size: 9px;
+    margin-top: 3px;
+  }
+  .family-unit {
+    gap: 10px;
+  }
+  .family-unit .person-card:nth-child(2)::before {
+    left: -10px;
+    width: 10px;
+  }
+  .tree li {
+    padding: 15px 2px 0 2px;
+  }
+  .tree li::before, .tree li::after {
+    height: 15px;
+  }
+  .tree ul ul::before {
+    height: 15px;
+  }
 }
 

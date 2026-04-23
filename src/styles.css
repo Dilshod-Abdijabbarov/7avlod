@@ -1,32 +1,55 @@
-/* You can add global styles to this file, and also import other style files */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+:root {
+  --bg-color: radial-gradient(circle at center, #1a1a2e 0%, #0f0f1a 100%);
+  --text-color: #fff;
+  --accent-color: #00ffc8;
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --panel-bg: rgba(30, 30, 46, 0.7);
+  --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+  --connector-color: #555;
+  --scrollbar-thumb: rgba(0, 255, 200, 0.3);
+}
+
+[data-theme='light'] {
+  --bg-color: radial-gradient(circle at center, #f5f7fa 0%, #c3cfe2 100%);
+  --text-color: #2c3e50;
+  --accent-color: #3498db;
+  --glass-bg: rgba(255, 255, 255, 0.6);
+  --glass-border: rgba(0, 0, 0, 0.1);
+  --panel-bg: rgba(255, 255, 255, 0.9);
+  --card-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+  --connector-color: #bdc3c7;
+  --scrollbar-thumb: rgba(52, 152, 219, 0.3);
+}
 
 body {
   margin: 0;
   padding: 0;
-  background: radial-gradient(circle at center, #1a1a2e 0%, #0f0f1a 100%);
-  color: #fff;
+  background: var(--bg-color);
+  color: var(--text-color);
   font-family: 'Inter', sans-serif;
   min-height: 100vh;
   overflow-x: hidden;
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
 * {
   box-sizing: border-box;
 }
 
-/* Custom Scrollbar for better aesthetics */
+/* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2); 
+  background: rgba(0, 0, 0, 0.1); 
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 255, 200, 0.3); 
+  background: var(--scrollbar-thumb); 
   border-radius: 5px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 255, 200, 0.5); 
+  background: var(--accent-color); 
 }
+
