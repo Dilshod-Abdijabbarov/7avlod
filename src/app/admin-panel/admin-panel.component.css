@@ -245,3 +245,4 @@ tr:hover td {
   }
 }
 
+.action-btns { display: flex; gap: 8px; } .btn-delete { background: var(--glass-bg); border: 1px solid rgba(255, 64, 129, 0.3); color: #ff4081; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 13px; transition: all 0.3s ease; } .btn-delete:hover { background: #ff4081; color: #fff; }

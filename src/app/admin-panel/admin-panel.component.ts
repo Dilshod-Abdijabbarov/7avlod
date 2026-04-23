@@ -1,8 +1,7 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FamilyService, Person } from '../services/family.service';
-import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-admin-panel',
@@ -11,25 +10,14 @@ import { Subscription } from 'rxjs';
   templateUrl: './admin-panel.component.html',
   styleUrls: ['./admin-panel.component.css']
 })
-export class AdminPanelComponent implements OnInit, OnDestroy {
-  persons: Person[] = [];
+export class AdminPanelComponent {
+  private familyService = inject(FamilyService);
+  
+  // Signallarni to'g'ridan-to'g'ri bog'laymiz
+  persons = this.familyService.persons;
+  
   selectedPerson: Person | null = null;
-  isEditing: boolean = false;
-  private sub: Subscription = new Subscription();
-
-  constructor(private familyService: FamilyService) {}
-
-  ngOnInit() {
-    this.sub.add(
-      this.familyService.persons$.subscribe(data => {
-        this.persons = data;
-      })
-    );
-  }
-
-  ngOnDestroy() {
-    this.sub.unsubscribe();
-  }
+  isEditing = false;
 
   editPerson(person: Person) {
     this.selectedPerson = { ...person };
@@ -55,21 +43,27 @@ export class AdminPanelComponent implements OnInit, OnDestroy {
     this.isEditing = false;
   }
 
-  savePerson() {
+  async savePerson() {
     if (this.selectedPerson) {
       if (this.selectedPerson.id) {
-        this.familyService.updatePerson(this.selectedPerson);
+        await this.familyService.updatePerson(this.selectedPerson);
       } else {
-        this.familyService.addPerson(this.selectedPerson);
+        await this.familyService.addPerson(this.selectedPerson);
       }
       this.selectedPerson = null;
       this.isEditing = false;
     }
   }
 
+  async deletePerson(id: string) {
+    if (confirm('Rostdan ham ushbu foydalanuvchini o\'chirmoqchimisiz?')) {
+      await this.familyService.deletePerson(id);
+    }
+  }
+
   getParentName(parentId?: string): string {
     if (!parentId) return '-';
-    const parent = this.persons.find(p => p.id === parentId);
+    const parent = this.persons().find(p => p.id === parentId);
     return parent ? parent.name : '-';
   }
 }

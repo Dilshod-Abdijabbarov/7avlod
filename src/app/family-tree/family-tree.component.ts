@@ -1,7 +1,6 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FamilyService, FamilyNode, Person } from '../services/family.service';
-import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-family-tree',
@@ -10,24 +9,13 @@ import { Subscription } from 'rxjs';
   templateUrl: './family-tree.component.html',
   styleUrls: ['./family-tree.component.css']
 })
-export class FamilyTreeComponent implements OnInit, OnDestroy {
+export class FamilyTreeComponent {
+  private familyService = inject(FamilyService);
+  
+  // Daraxt ma'lumotlarini signal orqali avtomatik yangilanishini ta'minlaymiz
+  treeData = computed(() => this.familyService.getTreeData());
+  
   selectedPerson: Person | null = null;
-  treeData: FamilyNode | null = null;
-  private sub: Subscription = new Subscription();
-
-  constructor(private familyService: FamilyService) {}
-
-  ngOnInit() {
-    this.sub.add(
-      this.familyService.persons$.subscribe(() => {
-        this.treeData = this.familyService.getTreeData();
-      })
-    );
-  }
-
-  ngOnDestroy() {
-    this.sub.unsubscribe();
-  }
 
   selectPerson(person: Person) {
     this.selectedPerson = person;
