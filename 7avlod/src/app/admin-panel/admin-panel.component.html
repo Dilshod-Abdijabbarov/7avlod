@@ -1,0 +1,85 @@
+<div class="admin-container">
+  <div class="admin-header">
+    <h2>Foydalanuvchilarni Boshqarish (Admin Panel)</h2>
+    <button class="btn-add" (click)="addNewPerson()">+ Yangi Qo'shish</button>
+  </div>
+
+  <div class="admin-layout">
+    <!-- List Section -->
+    <div class="list-section glass-panel">
+      <table>
+        <thead>
+          <tr>
+            <th>Rasm</th>
+            <th>Ism</th>
+            <th>Rol</th>
+            <th>Ota-onasi</th>
+            <th>Harakatlar</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let person of persons">
+            <td>
+              <img [src]="person.imageUrl || 'https://via.placeholder.com/50'" class="avatar">
+            </td>
+            <td>{{ person.name }}</td>
+            <td><span class="badge">{{ person.role || 'Noma`lum' }}</span></td>
+            <td>{{ getParentName(person.parentId) }}</td>
+            <td>
+              <button class="btn-edit" (click)="editPerson(person)">Tahrirlash</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Edit/Add Form Section -->
+    <div class="form-section glass-panel" *ngIf="isEditing && selectedPerson">
+      <h3>{{ selectedPerson.id ? 'Ma`lumotlarni tahrirlash' : 'Yangi foydalanuvchi qo`shish' }}</h3>
+      <form (ngSubmit)="savePerson()">
+        <div class="form-group">
+          <label>Ism</label>
+          <input type="text" [(ngModel)]="selectedPerson.name" name="name" required>
+        </div>
+        
+        <div class="form-group">
+          <label>Rol (Masalan: Nevara, O'g'il)</label>
+          <input type="text" [(ngModel)]="selectedPerson.role" name="role">
+        </div>
+
+        <div class="form-group" *ngIf="!selectedPerson.id || selectedPerson.parentId">
+          <label>Ota yoki Onasini tanlang (Majburiy emas)</label>
+          <select [(ngModel)]="selectedPerson.parentId" name="parentId" class="form-select">
+            <option value="">Hech qaysi (Tepa avlod)</option>
+            <option *ngFor="let p of persons" [value]="p.id">{{ p.name }}</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Rasm URL (Internetdan link)</label>
+          <input type="text" [(ngModel)]="selectedPerson.imageUrl" name="imageUrl">
+        </div>
+
+        <div class="form-group">
+          <label>Tug'ilgan sana</label>
+          <input type="date" [(ngModel)]="selectedPerson.birthDate" name="birthDate">
+        </div>
+
+        <div class="form-group">
+          <label>Yashash joyi (Manzil)</label>
+          <input type="text" [(ngModel)]="selectedPerson.location" name="location">
+        </div>
+
+        <div class="form-group">
+          <label>Qisqacha tarjimai hol (Bio)</label>
+          <textarea [(ngModel)]="selectedPerson.bio" name="bio" rows="4"></textarea>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn-cancel" (click)="cancelEdit()">Bekor qilish</button>
+          <button type="submit" class="btn-save">Saqlash</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

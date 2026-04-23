@@ -1,0 +1,65 @@
+<div class="tree-container">
+  <div class="tree">
+    <ul *ngIf="treeData">
+      <ng-container *ngTemplateOutlet="nodeTemplate; context:{ $implicit: treeData }"></ng-container>
+    </ul>
+  </div>
+</div>
+
+<ng-template #nodeTemplate let-node>
+  <li>
+    <div class="family-unit">
+      <div class="person-card" *ngFor="let parent of node.parents" (click)="selectPerson(parent)">
+        <div class="card-glass">
+          <div class="image-wrapper">
+            <img [src]="parent.imageUrl || 'https://via.placeholder.com/150'" [alt]="parent.name">
+            <div class="glow-ring"></div>
+          </div>
+          <div class="info">
+            <h3>{{ parent.name }}</h3>
+            <span class="role">{{ parent.role }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <ul *ngIf="node.children && node.children.length > 0">
+      <ng-container *ngFor="let child of node.children">
+        <ng-container *ngTemplateOutlet="nodeTemplate; context:{ $implicit: child }"></ng-container>
+      </ng-container>
+    </ul>
+  </li>
+</ng-template>
+
+<!-- Modal Overlay -->
+<div class="modal-overlay" *ngIf="selectedPerson" (click)="closeModal()">
+  <div class="modal-content glass-panel" (click)="$event.stopPropagation()">
+    <button class="close-btn" (click)="closeModal()">×</button>
+    <div class="modal-header">
+      <div class="modal-image">
+        <img [src]="selectedPerson.imageUrl || 'https://via.placeholder.com/150'" [alt]="selectedPerson.name">
+        <div class="glow-ring"></div>
+      </div>
+      <div class="modal-title">
+        <h2>{{ selectedPerson.name }}</h2>
+        <span class="modal-role">{{ selectedPerson.role }}</span>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="info-row" *ngIf="selectedPerson.birthDate">
+        <i class="icon">📅</i>
+        <span><strong>Tug'ilgan sana:</strong> {{ selectedPerson.birthDate }}</span>
+      </div>
+      <div class="info-row" *ngIf="selectedPerson.location">
+        <i class="icon">📍</i>
+        <span><strong>Manzil:</strong> {{ selectedPerson.location }}</span>
+      </div>
+      <div class="info-row" *ngIf="selectedPerson.bio">
+        <i class="icon">📝</i>
+        <p class="bio-text">{{ selectedPerson.bio }}</p>
+      </div>
+      <div *ngIf="!selectedPerson.birthDate && !selectedPerson.location && !selectedPerson.bio">
+        <p class="empty-state">Bu inson haqida qo'shimcha ma'lumot kiritilmagan.</p>
+      </div>
+    </div>
+  </div>
+</div>
