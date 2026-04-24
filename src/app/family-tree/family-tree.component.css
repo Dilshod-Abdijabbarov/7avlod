@@ -111,12 +111,12 @@
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid var(--glass-border);
   box-shadow: var(--card-shadow);
-  padding: 15px 25px;
-  border-radius: 15px;
+  padding: 25px 35px;
+  border-radius: 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-width: 120px;
+  min-width: 200px;
   transition: transform 0.3s ease, box-shadow 0.3s ease, border 0.3s ease, background 0.3s ease;
 }
 
@@ -128,10 +128,10 @@
 
 .image-wrapper {
   position: relative;
-  width: 70px;
-  height: 70px;
+  width: 100px;
+  height: 100px;
   border-radius: 50%;
-  margin-bottom: 10px;
+  margin-bottom: 15px;
 }
 
 .image-wrapper img {
@@ -173,16 +173,16 @@
 
 .info h3 {
   margin: 0;
-  font-size: 14px;
+  font-size: 20px;
   color: var(--text-color);
   font-family: 'Inter', sans-serif;
   letter-spacing: 0.5px;
 }
 
 .info .role {
-  font-size: 11px;
+  font-size: 14px;
   color: #00ffc8;
-  margin-top: 5px;
+  margin-top: 8px;
   display: block;
   font-family: 'Inter', sans-serif;
   text-transform: uppercase;
@@ -245,7 +245,7 @@
   right: 15px;
   background: rgba(255, 255, 255, 0.1);
   border: none;
-  color: #fff;
+  color: var(--text-color);
   font-size: 24px;
   width: 32px;
   height: 32px;
@@ -295,13 +295,13 @@
 
 .modal-title h2 {
   margin: 0 0 5px;
-  font-size: 22px;
-  font-weight: 600;
+  font-size: 26px;
+  font-weight: 700;
   letter-spacing: 0.5px;
 }
 
 .modal-role {
-  font-size: 13px;
+  font-size: 14px;
   color: #00ffc8;
   text-transform: uppercase;
   letter-spacing: 1.5px;
@@ -326,27 +326,30 @@
 }
 
 .info-row span, .info-row p {
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.85);
+  font-size: 16px;
+  color: var(--text-color);
+  opacity: 0.9;
   margin: 0;
 }
 
 .info-row strong {
-  color: #fff;
-  font-weight: 600;
+  color: var(--text-color);
+  font-weight: 700;
 }
 
 .bio-text {
   margin-top: 5px !important;
   font-style: italic;
-  color: rgba(255, 255, 255, 0.7) !important;
+  color: var(--text-color) !important;
+  opacity: 0.7;
   border-left: 2px solid rgba(0, 255, 200, 0.5);
   padding-left: 10px;
 }
 
 .empty-state {
   text-align: center;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-color);
+  opacity: 0.5;
   font-style: italic;
   font-size: 14px;
   margin: 0;

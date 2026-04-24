@@ -1,95 +1,381 @@
 <div class="admin-container">
+  @if (notification(); as note) {
+    <div class="notification" [class]="note.type">
+      {{ note.message }}
+    </div>
+  }
+
   <div class="admin-header">
-    <h2>Foydalanuvchilarni Boshqarish (Admin Panel)</h2>
-    <button class="btn-add" (click)="addNewPerson()">+ Yangi Qo'shish</button>
+    <h2>Admin Panel</h2>
+    <div class="admin-tabs">
+      <button class="tab-btn" [class.active]="activeTab() === 'people'" (click)="activeTab.set('people')">
+        <span class="icon">👥</span> Odamlar
+      </button>
+      <button class="tab-btn" [class.active]="activeTab() === 'marriages'" (click)="activeTab.set('marriages')">
+        <span class="icon">💍</span> Nikohlar
+      </button>
+      <button class="tab-btn" [class.active]="activeTab() === 'linking'" (click)="activeTab.set('linking')">
+        <span class="icon">🔗</span> Bog'lash
+      </button>
+    </div>
+    <div style="width: 140px;"></div>
   </div>
 
-  <div class="admin-layout">
-    <!-- List Section -->
-    <div class="list-section glass-panel">
-      <table>
-        <thead>
-          <tr>
-            <th>Rasm</th>
-            <th>Ism</th>
-            <th>Rol</th>
-            <th>Ota-onasi</th>
-            <th>Harakatlar</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (person of persons(); track person.id) {
-            <tr>
-              <td>
-                <img [src]="person.imageUrl || 'https://via.placeholder.com/50'" class="avatar">
-              </td>
-              <td>{{ person.name }}</td>
-              <td><span class="badge">{{ person.role || 'Noma`lum' }}</span></td>
-              <td>{{ getParentName(person.parentId) }}</td>
-              <td>
-                <div class="action-btns">
-                  <button class="btn-edit" (click)="editPerson(person)">Tahrir</button>
-                  <button class="btn-delete" (click)="deletePerson(person.id)">O'chirish</button>
-                </div>
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </div>
+  <div class="tab-content">
+    <!-- 1. ODAMLAR TABI -->
+    @if (activeTab() === 'people') {
+      <div class="tab-header">
+        <h3>👥 Odamlar Ro'yxati</h3>
+        <button class="btn-add" (click)="addNewPerson()">+ Yangi Odam Qo'shish</button>
+      </div>
 
-    <!-- Edit/Add Form Section -->
-    @if (isEditing && selectedPerson) {
-      <div class="form-section glass-panel">
-        <h3>{{ selectedPerson.id ? 'Ma`lumotlarni tahrirlash' : 'Yangi foydalanuvchi qo`shish' }}</h3>
-        <form (ngSubmit)="savePerson()">
-          <div class="form-group">
-            <label>Ism</label>
-            <input type="text" [(ngModel)]="selectedPerson.name" name="name" required>
-          </div>
-          
-          <div class="form-group">
-            <label>Rol (Masalan: Nevara, O'g'il)</label>
-            <input type="text" [(ngModel)]="selectedPerson.role" name="role">
-          </div>
-
-          <div class="form-group">
-            <label>Ota yoki Onasini tanlang</label>
-            <select [(ngModel)]="selectedPerson.parentId" name="parentId" class="form-select">
-              <option value="">Hech qaysi (Tepa avlod)</option>
-              @for (p of persons(); track p.id) {
-                @if (p.id !== selectedPerson.id) {
-                  <option [value]="p.id">{{ p.name }}</option>
-                }
+      <div class="admin-layout">
+        <div class="list-section glass-panel">
+          <table>
+            <thead>
+              <tr>
+                <th>Rasm</th>
+                <th>F.I.SH</th>
+                <th>PINFL</th>
+                <th>Harakatlar</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (person of persons(); track person.id) {
+                <tr>
+                  <td>
+                    <img [src]="person.photoUrl || 'https://via.placeholder.com/50'" class="avatar">
+                  </td>
+                  <td>{{ person.firstName }} {{ person.lastName }}</td>
+                  <td>{{ person.pinfl || '-' }}</td>
+                  <td>
+                    <div class="action-btns">
+                      <button class="btn-edit" (click)="editPerson(person)">Tahrir</button>
+                      <button class="btn-delete" (click)="deletePerson(person.id)">O'chirish</button>
+                    </div>
+                  </td>
+                </tr>
               }
-            </select>
+            </tbody>
+          </table>
+        </div>
+    
+        @if (isEditing && selectedPerson) {
+          <div class="form-section glass-panel">
+            <h3>{{ selectedPerson.id ? 'Ma`lumotlarni tahrirlash' : 'Yangi foydalanuvchi qo`shish' }}</h3>
+            <form (ngSubmit)="savePerson()">
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Ism</label>
+                  <input type="text" [(ngModel)]="selectedPerson.firstName" name="firstName" required>
+                </div>
+                <div class="form-group">
+                  <label>Familiya</label>
+                  <input type="text" [(ngModel)]="selectedPerson.lastName" name="lastName" required>
+                </div>
+              </div>
+    
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Otasining ismi</label>
+                  <input type="text" [(ngModel)]="selectedPerson.middleName" name="middleName">
+                </div>
+                <div class="form-group">
+                  <label>PINFL</label>
+                  <input type="text" [(ngModel)]="selectedPerson.pinfl" name="pinfl">
+                </div>
+              </div>
+    
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Jinsi</label>
+                  <select [(ngModel)]="selectedPerson.gender" name="gender">
+                    <option [ngValue]="1">Erkak</option>
+                    <option [ngValue]="2">Ayol</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Tirikmi?</label>
+                  <select [(ngModel)]="selectedPerson.isAlive" name="isAlive">
+                    <option [ngValue]="true">Ha</option>
+                    <option [ngValue]="false">Yo'q</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Tug'ilgan sana</label>
+                  <input type="date" [(ngModel)]="selectedPerson.birthDate" name="birthDate">
+                </div>
+                <div class="form-group">
+                  <label>Vafot etgan sana</label>
+                  <input type="date" [(ngModel)]="selectedPerson.deathDate" name="deathDate" [disabled]="selectedPerson.isAlive">
+                </div>
+              </div>
+    
+              <div class="form-group">
+                <label>Tug'ilgan joyi</label>
+                <input type="text" [(ngModel)]="selectedPerson.birthPlace" name="birthPlace">
+              </div>
+    
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Telefon raqam</label>
+                  <input type="text" [(ngModel)]="selectedPerson.phoneNumber" name="phoneNumber">
+                </div>
+                <div class="form-group">
+                  <label>Rasm URL</label>
+                  <input type="text" [(ngModel)]="selectedPerson.photoUrl" name="photoUrl">
+                </div>
+              </div>
+    
+              <div class="form-group">
+                <label>Biografiya</label>
+                <textarea [(ngModel)]="selectedPerson.biography" name="biography" rows="3"></textarea>
+              </div>
+    
+              <div class="form-actions">
+                <button type="button" class="btn-cancel" (click)="cancelEdit()">Bekor qilish</button>
+                <button type="submit" class="btn-save">Saqlash</button>
+              </div>
+            </form>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- 2. NIKOHLAR TABI -->
+    @if (activeTab() === 'marriages') {
+      <div class="tab-header">
+        <h3>💍 Nikohlar (Er-Xotinlar)</h3>
+      </div>
+      <div class="admin-layout">
+        <div class="list-section glass-panel">
+          <div class="marriage-form">
+            <!-- 1. Erni tanlash -->
+            <div class="form-row numbered-row">
+              <span class="row-number">1</span>
+              <div class="form-group search-wrapper">
+                <label>Erni qidiring</label>
+                <div class="search-container">
+                  <input type="text" 
+                         [ngModel]="husbandSearchTerm()" 
+                         (ngModelChange)="husbandSearchTerm.set($event)" 
+                         placeholder="Ism, familiya yoki PINFL..."
+                         class="search-input">
+                  
+                  @if (husbandSearchTerm()) {
+                    <div class="search-results">
+                      @for (p of filteredHusbands(); track p.id) {
+                        <div class="search-item" (mousedown)="selectHusband(p.id!)">
+                          <img [src]="p.photoUrl || 'https://via.placeholder.com/30'" class="mini-avatar">
+                          <span>{{ p.firstName }} {{ p.lastName }} ({{ p.pinfl || 'PINFL yo\'q' }})</span>
+                        </div>
+                      }
+                      @if (filteredHusbands().length === 0) {
+                        <div class="no-results">Topilmadi</div>
+                      }
+                    </div>
+                  }
+                </div>
+                <div class="selected-badge" [class.active]="newSpouse.husbandId">
+                  ✅ Tanlangan: {{ getPersonName(newSpouse.husbandId) }}
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. Xotinni tanlash -->
+            <div class="form-row numbered-row">
+              <span class="row-number">2</span>
+              <div class="form-group search-wrapper">
+                <label>Xotinni qidiring</label>
+                <div class="search-container">
+                  <input type="text" 
+                         [ngModel]="wifeSearchTerm()" 
+                         (ngModelChange)="wifeSearchTerm.set($event)" 
+                         placeholder="Ism, familiya yoki PINFL..."
+                         class="search-input">
+                  
+                  @if (wifeSearchTerm()) {
+                    <div class="search-results">
+                      @for (p of filteredWives(); track p.id) {
+                        <div class="search-item" (mousedown)="selectWife(p.id!)">
+                          <img [src]="p.photoUrl || 'https://via.placeholder.com/30'" class="mini-avatar">
+                          <span>{{ p.firstName }} {{ p.lastName }} ({{ p.pinfl || 'PINFL yo\'q' }})</span>
+                        </div>
+                      }
+                      @if (filteredWives().length === 0) {
+                        <div class="no-results">Topilmadi</div>
+                      }
+                    </div>
+                  }
+                </div>
+                <div class="selected-badge" [class.active]="newSpouse.wifeId">
+                  ✅ Tanlangan: {{ getPersonName(newSpouse.wifeId) }}
+                </div>
+              </div>
+            </div>
+
+            <div class="form-row" style="justify-content: flex-end; margin-top: 20px;">
+              <button class="btn-save" style="flex: 0 0 300px; height: 45px;" (click)="saveSpouse()">
+                + Nikohni Saqlash
+              </button>
+            </div>
           </div>
 
-          <div class="form-group">
-            <label>Rasm URL</label>
-            <input type="text" [(ngModel)]="selectedPerson.imageUrl" name="imageUrl">
+          <div class="current-links" style="margin-top: 40px;">
+            <h4>Mavjud Nikohlar</h4>
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 60px; text-align: center;">T/r</th>
+                  <th>Er</th>
+                  <th>Xotin</th>
+                  <th style="width: 120px; text-align: center;">Harakatlar</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (spouse of spouses(); track spouse.id) {
+                  <tr>
+                    <td class="row-num-cell" style="text-align: center;"></td>
+                    <td>{{ getPersonName(spouse.husbandId) }}</td>
+                    <td>{{ getPersonName(spouse.wifeId) }}</td>
+                    <td style="text-align: center;">
+                      <button class="btn-delete" (click)="deleteSpouse(spouse.id)">O'chirish</button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- 3. BOG'LASH TABI -->
+    @if (activeTab() === 'linking') {
+      <div class="tab-header">
+        <h3>🔗 Ota-ona va Farzandni bog'lash</h3>
+      </div>
+      <div class="admin-layout">
+        <div class="list-section glass-panel">
+          <p class="help-text">Bu yerda mavjud bolani mavjud nikohga (ota-onaga) bog'lashingiz mumkin.</p>
+          
+          <div class="linking-form">
+            <!-- 1. Ota-ona tanlash -->
+            <div class="form-row numbered-row">
+              <span class="row-number">1</span>
+              <div class="form-group search-wrapper">
+                <label>Ota-onasini (Nikohni) qidiring</label>
+                <div class="search-container">
+                  <input type="text" 
+                         [ngModel]="parentSearchTerm()" 
+                         (ngModelChange)="parentSearchTerm.set($event)" 
+                         placeholder="Ota yoki onasining ismi..."
+                         class="search-input">
+                  
+                  @if (parentSearchTerm()) {
+                    <div class="search-results">
+                      @for (m of filteredMarriages(); track m.id) {
+                        <div class="search-item" (mousedown)="selectLinkingMarriage(m)">
+                          <span class="icon">💍</span>
+                          <div class="search-item-info">
+                            <span>{{ m.displayName }}</span>
+                            <small style="display: block; opacity: 0.5; font-size: 10px;">ID: {{ m.id || 'YO\'Q' }}</small>
+                          </div>
+                        </div>
+                      }
+                      @if (filteredMarriages().length === 0) {
+                        <div class="no-results">Topilmadi</div>
+                      }
+                    </div>
+                  }
+                </div>
+                <div class="selected-badge" [class.active]="linkingMarriageId && linkingMarriageId !== 'undefined'">
+                  ✅ Tanlangan: {{ getParentName(linkingMarriageId) }}
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. Farzand tanlash -->
+            <div class="form-row numbered-row">
+              <span class="row-number">2</span>
+              <div class="form-group search-wrapper">
+                <label>Farzandni qidiring</label>
+                <div class="search-container">
+                  <input type="text" 
+                         [ngModel]="childSearchTerm()" 
+                         (ngModelChange)="childSearchTerm.set($event)" 
+                         placeholder="Ism, familiya yoki PINFL..."
+                         class="search-input">
+                  
+                  @if (childSearchTerm()) {
+                    <div class="search-results">
+                      @for (p of filteredPersonsLinking(); track p.id) {
+                        <div class="search-item" (mousedown)="selectLinkingChild(p.id!)">
+                          <img [src]="p.photoUrl || 'https://via.placeholder.com/30'" class="mini-avatar">
+                          <span>{{ p.firstName }} {{ p.lastName }} ({{ p.pinfl || 'PINFL yo\'q' }})</span>
+                        </div>
+                      }
+                      @if (filteredPersonsLinking().length === 0) {
+                        <div class="no-results">Topilmadi</div>
+                      }
+                    </div>
+                  }
+                </div>
+                <div class="selected-badge" [class.active]="linkingChildId && linkingChildId !== 'undefined'">
+                  ✅ Tanlangan: {{ getPersonName(linkingChildId) }}
+                </div>
+              </div>
+            </div>
+
+            <!-- 3. Tartib va Saqlash -->
+            <div class="form-row numbered-row" style="align-items: flex-end;">
+              <span class="row-number">3</span>
+              <div class="form-group" style="flex: 0 0 150px;">
+                <label>Farzand tartibi</label>
+                <input type="number" [(ngModel)]="linkingOrder" name="linkingOrder" min="1" class="search-input">
+              </div>
+              
+              <div style="flex: 1;"></div>
+              
+              <button class="btn-save" style="flex: 0 0 300px; height: 45px;" (click)="saveLink()">
+                🔗 Bog'lashni Saqlash
+              </button>
+            </div>
           </div>
 
-          <div class="form-group">
-            <label>Tug'ilgan sana</label>
-            <input type="date" [(ngModel)]="selectedPerson.birthDate" name="birthDate">
+          <div class="current-links" style="margin-top: 40px;">
+            <h4>Mavjud Bog'lanishlar</h4>
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 60px; text-align: center;">T/r</th>
+                  <th style="width: 25%;">Farzand</th>
+                  <th>Ota-onasi</th>
+                  <th style="width: 120px; text-align: center;">Tartib</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (p of persons(); track p.id) {
+                  @if (p.parentSpouseId) {
+                    <tr>
+                      <td class="row-num-cell" style="text-align: center;"></td>
+                      <td>{{ p.firstName }} {{ p.lastName }}</td>
+                      <td>{{ getParentName(p.parentSpouseId) }}</td>
+                      <td style="text-align: center;">
+                        <span class="badge" style="background: rgba(52, 152, 219, 0.1); border-color: #3498db;">
+                          {{ p.order || '-' }}-farzand
+                        </span>
+                      </td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
           </div>
-
-          <div class="form-group">
-            <label>Yashash joyi</label>
-            <input type="text" [(ngModel)]="selectedPerson.location" name="location">
-          </div>
-
-          <div class="form-group">
-            <label>Bio</label>
-            <textarea [(ngModel)]="selectedPerson.bio" name="bio" rows="3"></textarea>
-          </div>
-
-          <div class="form-actions">
-            <button type="button" class="btn-cancel" (click)="cancelEdit()">Bekor qilish</button>
-            <button type="submit" class="btn-save">Saqlash</button>
-          </div>
-        </form>
+        </div>
       </div>
     }
   </div>

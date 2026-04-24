@@ -17,12 +17,12 @@
         <div class="person-card" (click)="selectPerson(parent)">
           <div class="card-glass">
             <div class="image-wrapper">
-              <img [src]="parent.imageUrl || 'https://via.placeholder.com/150'" [alt]="parent.name">
+              <img [src]="parent.photoUrl || parent.imageUrl || 'https://via.placeholder.com/150'" [alt]="parent.firstName">
               <div class="glow-ring"></div>
             </div>
             <div class="info">
-              <h3>{{ parent.name }}</h3>
-              <span class="role">{{ parent.role }}</span>
+              <h3>{{ parent.firstName }} {{ parent.lastName }}</h3>
+              <span class="role">{{ parent.role || (parent.gender === 1 ? 'Erkak' : 'Ayol') }}</span>
             </div>
           </div>
         </div>
@@ -46,31 +46,37 @@
       <button class="close-btn" (click)="closeModal()">×</button>
       <div class="modal-header">
         <div class="modal-image">
-          <img [src]="selectedPerson.imageUrl || 'https://via.placeholder.com/150'" [alt]="selectedPerson.name">
+          <img [src]="selectedPerson.photoUrl || selectedPerson.imageUrl || 'https://via.placeholder.com/150'" [alt]="selectedPerson.firstName">
           <div class="glow-ring"></div>
         </div>
         <div class="modal-title">
-          <h2>{{ selectedPerson.name }}</h2>
-          <span class="modal-role">{{ selectedPerson.role }}</span>
+          <h2>{{ selectedPerson.firstName }} {{ selectedPerson.lastName }}</h2>
+          <span class="modal-role">{{ selectedPerson.role || (selectedPerson.gender === 1 ? 'Erkak' : 'Ayol') }}</span>
         </div>
       </div>
       <div class="modal-body">
         @if (selectedPerson.birthDate) {
           <div class="info-row">
             <i class="icon">📅</i>
-            <span><strong>Tug'ilgan sana:</strong> {{ selectedPerson.birthDate }}</span>
+            <span><strong>Tug'ilgan sana:</strong> {{ selectedPerson.birthDate | date:'dd.MM.yyyy' }}</span>
           </div>
         }
-        @if (selectedPerson.location) {
+        @if (selectedPerson.birthPlace || selectedPerson.location) {
           <div class="info-row">
             <i class="icon">📍</i>
-            <span><strong>Manzil:</strong> {{ selectedPerson.location }}</span>
+            <span><strong>Manzil:</strong> {{ selectedPerson.birthPlace || selectedPerson.location }}</span>
           </div>
         }
-        @if (selectedPerson.bio) {
+        @if (selectedPerson.biography || selectedPerson.bio) {
           <div class="info-row">
             <i class="icon">📝</i>
-            <p class="bio-text">{{ selectedPerson.bio }}</p>
+            <p class="bio-text">{{ selectedPerson.biography || selectedPerson.bio }}</p>
+          </div>
+        }
+        @if (selectedPerson.phoneNumber) {
+          <div class="info-row">
+            <i class="icon">📞</i>
+            <span><strong>Telefon:</strong> {{ selectedPerson.phoneNumber }}</span>
           </div>
         }
         @if (!selectedPerson.birthDate && !selectedPerson.location && !selectedPerson.bio) {

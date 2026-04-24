@@ -3,19 +3,46 @@ import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 
 export interface Person {
-  id: string;
-  name: string;
+  id?: string;
+  parentSpouseId?: string;
+  pinfl?: string;
+  firstName: string;
+  lastName: string;
+  middleName?: string;
+  birthDate?: string;
+  gender: number;
+  order: number;
+  generationLevel: number;
+  photoUrl?: string;
+  phoneNumber?: string;
+  isAlive: boolean;
+  deathDate?: string;
+  birthPlace?: string;
+  biography?: string;
+  telegramLink?: string;
+  instagramLink?: string;
+  createdBy?: string;
+  description?: string;
+
+  // Legacy compatibility / virtual fields
+  name?: string;
   role?: string;
   imageUrl?: string;
-  birthDate?: string;
   location?: string;
   bio?: string;
   parentId?: string;
   spouseId?: string;
 }
 
+export interface Spouse {
+  id?: string;
+  husbandId?: string;
+  wifeId?: string;
+  order: number;
+}
+
 export interface FamilyNode {
-  parents: Person[]; 
+  parents: Person[];
   children?: FamilyNode[];
 }
 
@@ -25,48 +52,107 @@ export interface FamilyNode {
 export class FamilyService {
   private http = inject(HttpClient);
   // ASP.NET Web API manzili (O'zingiznikiga moslashtiring)
-  private apiUrl = 'https://localhost:7245/api/persons'; 
+  private apiUrl = 'https://localhost:7133/api/Person';
 
   // State boshqarish uchun signallar
   private personsSignal = signal<Person[]>([]);
   public persons = computed(() => this.personsSignal());
 
+  private spousesSignal = signal<Spouse[]>([]);
+  public spouses = computed(() => this.spousesSignal());
+
   constructor() {
     this.refreshPersons();
+    this.refreshSpouses();
   }
 
   // API'dan ma'lumotlarni qayta yuklash
   async refreshPersons() {
     try {
-      const data = await firstValueFrom(this.http.get<Person[]>(this.apiUrl));
-      this.personsSignal.set(data);
+      const data = await firstValueFrom(this.http.get<any>(`${this.apiUrl}/GetAllPersons`));
+
+      let personsArray: any[] = [];
+
+      if (data) {
+        if (Array.isArray(data)) {
+          personsArray = data;
+        } else if (typeof data === 'object') {
+          // Foydalanuvchi taqdim etgan struktura: data.result.items
+          if (data.result && Array.isArray(data.result.items)) {
+            personsArray = data.result.items;
+          } else {
+            // Boshqa mumkin bo'lgan formatlar uchun fallback
+            const possibleArray = data.$values || data.data || data.items || data.result;
+            if (Array.isArray(possibleArray)) {
+              personsArray = possibleArray;
+            }
+          }
+        }
+      }
+
+      // Ma'lumotlarni normalizatsiya qilish (id vs Id)
+      const normalizedPersons = personsArray.map(p => ({
+        ...p,
+        id: p.id || p.Id,
+        parentSpouseId: p.parentSpouseId || p.ParentSpouseId
+      }));
+
+      this.personsSignal.set(normalizedPersons);
     } catch (error) {
       console.error('API-dan ma\'lumot olishda xato:', error);
+      this.personsSignal.set([]); // Xatolik holatida bo'sh array
     }
   }
 
   // Daraxt strukturasini hisoblash
   getTreeData(): FamilyNode | null {
     const allPersons = this.persons();
-    if (allPersons.length === 0) return null;
+    const allSpouses = this.spouses();
+    if (!Array.isArray(allPersons) || allPersons.length === 0) return null;
 
-    // Eng asosiy odamni topish (parentId yo'q odam)
-    const rootPerson = allPersons.find(p => !p.parentId && p.spouseId) || allPersons[0];
-    return this.buildNode(rootPerson, allPersons);
-  }
+    // Eng asosiy odamni topish (parentSpouseId yo'q bo'lgan va erkak kishi - odatda shajara boshlovchisi)
+    const rootPerson = allPersons.find(p => !p.parentSpouseId && p.gender === 1) || allPersons[0];
+    
+    // Shu odam ishtirokidagi birinchi nikohni topish
+    const rootSpouse = allSpouses.find(s => s.husbandId === rootPerson.id || s.wifeId === rootPerson.id);
 
-  private buildNode(mainPerson: Person, allPersons: Person[]): FamilyNode {
-    const parents = [mainPerson];
-    if (mainPerson.spouseId) {
-      const spouse = allPersons.find(p => p.id === mainPerson.spouseId);
-      if (spouse) parents.push(spouse);
+    if (!rootSpouse) {
+      // Agar nikohi bo'lmasa, faqat shu odamning o'zini chiqaramiz
+      return {
+        parents: [rootPerson],
+        children: this.getChildNodesForPerson(rootPerson, allPersons, allSpouses)
+      };
     }
 
-    const childrenPersons = allPersons.filter(p => 
-      p.parentId === mainPerson.id || (mainPerson.spouseId && p.parentId === mainPerson.spouseId)
-    );
+    return this.buildNode(rootSpouse, allPersons, allSpouses);
+  }
 
-    const childrenNodes: FamilyNode[] = childrenPersons.map(child => this.buildNode(child, allPersons));
+  private buildNode(spouse: Spouse, allPersons: Person[], allSpouses: Spouse[]): FamilyNode {
+    const husband = allPersons.find(p => p.id === spouse.husbandId);
+    const wife = allPersons.find(p => p.id === spouse.wifeId);
+    
+    const parents: Person[] = [];
+    if (husband) parents.push(husband);
+    if (wife) parents.push(wife);
+
+    // Bu nikohdan tug'ilgan bolalar
+    const childrenPersons = allPersons.filter(p => p.parentSpouseId === spouse.id);
+    
+    const childrenNodes: FamilyNode[] = childrenPersons.map(child => {
+      // Har bir bola uchun uning nikohlarini tekshiramiz
+      const childMarriages = allSpouses.filter(s => s.husbandId === child.id || s.wifeId === child.id);
+      
+      if (childMarriages.length > 0) {
+        // Agar bolaning nikohlari bo'lsa, birinchi nikohni (yoki asosiyini) node qilib qaytaramiz
+        return this.buildNode(childMarriages[0], allPersons, allSpouses);
+      } else {
+        // Nikohi bo'lmasa, faqat bolaning o'zini node qilib qaytaramiz
+        return {
+          parents: [child],
+          children: []
+        };
+      }
+    });
 
     return {
       parents,
@@ -74,20 +160,165 @@ export class FamilyService {
     };
   }
 
+  private getChildNodesForPerson(person: Person, allPersons: Person[], allSpouses: Spouse[]): FamilyNode[] {
+    const children = allPersons.filter(p => p.parentSpouseId === person.id); // Legacy support or direct link
+    return children.map(child => {
+      const childMarriages = allSpouses.filter(s => s.husbandId === child.id || s.wifeId === child.id);
+      if (childMarriages.length > 0) {
+        return this.buildNode(childMarriages[0], allPersons, allSpouses);
+      }
+      return { parents: [child], children: [] };
+    });
+  }
+
   async addPerson(person: Person) {
-    const res = await firstValueFrom(this.http.post<Person>(this.apiUrl, person));
-    await this.refreshPersons();
+    const cleanPerson = this.preparePersonData(person, true);
+    const res = await firstValueFrom(this.http.post<any>(`${this.apiUrl}/CreatePerson`, cleanPerson));
+    
+    // Agar javob muvaffaqiyatli bo'lsa (result true yoki statusCode 200), ro'yxatni yangilaymiz
+    if (res && (res.result === true || res.statusCode === 200)) {
+      await this.refreshPersons();
+    }
     return res;
   }
 
   async updatePerson(person: Person) {
-    const res = await firstValueFrom(this.http.put<Person>(`${this.apiUrl}/${person.id}`, person));
-    await this.refreshPersons();
+    const cleanPerson = this.preparePersonData(person, false);
+    const res = await firstValueFrom(this.http.put<any>(`${this.apiUrl}/UpdatePerson`, cleanPerson));
+    
+    // Agar javob muvaffaqiyatli bo'lsa (result true yoki statusCode 200), ro'yxatni yangilaymiz
+    if (res && (res.result === true || res.statusCode === 200)) {
+      await this.refreshPersons();
+    }
     return res;
+  }
+
+  private preparePersonData(person: Person, isNew: boolean): any {
+    const {
+      name, role, imageUrl, location, bio, parentId, spouseId,
+      ...data
+    } = person as any;
+
+    if (isNew) {
+      delete data.id;
+    }
+
+    Object.keys(data).forEach(key => {
+      // Bo'sh stringlarni olib tashlash
+      if (data[key] === '') {
+        delete data[key];
+      }
+
+      // Sanalarni UTC formatiga o'tkazish (PostgreSQL uchun zarur)
+      if ((key === 'birthDate' || key === 'deathDate') && data[key]) {
+        const date = new Date(data[key]);
+        if (!isNaN(date.getTime())) {
+          data[key] = date.toISOString();
+        }
+      }
+
+      // phoneNumber ni songa (Int64) o'tkazish
+      if (key === 'phoneNumber' && data[key] !== undefined && data[key] !== null) {
+        // Faqat raqamlarni qoldiramiz (Int64 kutilayotgani uchun barcha harf va belgilarni olib tashlaymiz)
+        const cleanVal = String(data[key]).replace(/\D/g, '');
+        if (cleanVal !== '') {
+          data[key] = parseInt(cleanVal, 10);
+        } else {
+          delete data[key];
+        }
+      }
+    });
+
+    return data;
   }
 
   async deletePerson(id: string) {
     await firstValueFrom(this.http.delete<void>(`${this.apiUrl}/${id}`));
     await this.refreshPersons();
+  }
+
+  // SPOUSE (NIKOH) METODLARI
+  async refreshSpouses() {
+    try {
+      const spouseApiUrl = 'https://localhost:7133/api/Person';
+      const data = await firstValueFrom(this.http.get<any>(`${spouseApiUrl}/GetAllSpouses`));
+      
+      let spousesArray: any[] = [];
+      if (data) {
+        if (Array.isArray(data)) {
+          spousesArray = data;
+        } else if (data.result && Array.isArray(data.result.items)) {
+          spousesArray = data.result.items;
+        } else {
+          const possibleArray = data.$values || data.data || data.items || data.result;
+          if (Array.isArray(possibleArray)) spousesArray = possibleArray;
+        }
+      }
+      
+      console.log('API-dan kelgan nikohlar:', spousesArray);
+      if (spousesArray.length > 0) {
+        console.log('Birinchi nikoh ob\'ekti kalitlari:', Object.keys(spousesArray[0]));
+        console.log('Birinchi nikoh ob\'ekti o\'zi:', spousesArray[0]);
+      }
+
+      // Ma'lumotlarni normalizatsiya qilish (id vs Id vs $id)
+      const normalizedSpouses = spousesArray.map(s => {
+        const id = s.id || s.Id || s.$id;
+        if (!id) {
+          console.error('Nikoh ob\'ektida ID topilmadi:', s);
+        }
+        return {
+          id: id,
+          husbandId: s.husbandId || s.HusbandId || s.husband_id,
+          wifeId: s.wifeId || s.WifeId || s.wife_id,
+          order: s.order || s.Order || s.order_number || 1
+        };
+      });
+      
+      console.log('Normalizatsiya qilingan nikohlar:', normalizedSpouses);
+
+      this.spousesSignal.set(normalizedSpouses);
+    } catch (error) {
+      console.error('Nikohlarni yuklashda xato:', error);
+      this.spousesSignal.set([]);
+    }
+  }
+
+  async addSpouse(spouseDto: any) {
+    const spouseApiUrl = 'https://localhost:7133/api/Person';
+    const res = await firstValueFrom(this.http.post<any>(`${spouseApiUrl}/AddSpouse`, spouseDto));
+    if (res && (res.result === true || res.statusCode === 200)) {
+      await this.refreshSpouses();
+    }
+    return res;
+  }
+
+  async deleteSpouse(id: string) {
+    const spouseApiUrl = 'https://localhost:7133/api/Person';
+    await firstValueFrom(this.http.delete<void>(`${spouseApiUrl}/DeleteSpouse/${id}`));
+    await this.refreshSpouses();
+  }
+
+  async assignParents(assignDto: { spouseId: string, personId: string, order: number }) {
+    console.log('AssignParents ga yuborilayotgan ma\'lumot:', assignDto);
+    
+    if (!assignDto.spouseId || assignDto.spouseId === 'undefined' || !assignDto.personId || assignDto.personId === 'undefined') {
+      alert('Iltimos, farzand va ota-onani tanlang!');
+      return null;
+    }
+
+    // Backend capitalized DTO (SpouseId, PersonId, Order) kutilmoqda
+    const body = {
+      SpouseId: assignDto.spouseId,
+      PersonId: assignDto.personId,
+      Order: assignDto.order
+    };
+
+    const res = await firstValueFrom(this.http.put<any>(`${this.apiUrl}/AssignParents`, body));
+    
+    if (res && (res.result === true || res.statusCode === 200)) {
+      await this.refreshPersons();
+    }
+    return res;
   }
 }
