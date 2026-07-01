@@ -1,43 +1,17 @@
 <div class="tree-container">
-  <div class="tree">
-    @if (treeData()) {
-      <ul>
-        <ng-container *ngTemplateOutlet="nodeTemplate; context:{ $implicit: treeData() }"></ng-container>
-      </ul>
-    } @else {
-      <div class="empty-state">Ma'lumotlar yuklanmoqda...</div>
-    }
-  </div>
-</div>
-
-<ng-template #nodeTemplate let-node>
-  <li>
-    <div class="family-unit">
-      @for (parent of node.parents; track parent.id) {
-        <div class="person-card" (click)="selectPerson(parent)">
-          <div class="card-glass">
-            <div class="image-wrapper">
-              <img [src]="parent.photoUrl || parent.imageUrl || 'https://via.placeholder.com/150'" [alt]="parent.firstName">
-              <div class="glow-ring"></div>
-            </div>
-            <div class="info">
-              <h3>{{ parent.firstName }} {{ parent.lastName }}</h3>
-              <span class="role">{{ parent.role || (parent.gender === 1 ? 'Erkak' : 'Ayol') }}</span>
-            </div>
-          </div>
-        </div>
-      }
+  @if (isLoading()) {
+    <div class="empty-state">Ma'lumotlar yuklanmoqda...</div>
+  } @else if (chartOptions()) {
+    <div 
+      echarts 
+      [options]="chartOptions()" 
+      (chartClick)="onChartClick($event)"
+      class="echarts-tree">
     </div>
-    
-    @if (node.children && node.children.length > 0) {
-      <ul>
-        @for (child of node.children; track child) {
-          <ng-container *ngTemplateOutlet="nodeTemplate; context:{ $implicit: child }"></ng-container>
-        }
-      </ul>
-    }
-  </li>
-</ng-template>
+  } @else {
+    <div class="empty-state">Daraxt ma'lumotlari topilmadi.</div>
+  }
+</div>
 
 <!-- Modal Overlay -->
 @if (selectedPerson) {
@@ -46,19 +20,24 @@
       <button class="close-btn" (click)="closeModal()">×</button>
       <div class="modal-header">
         <div class="modal-image">
-          <img [src]="selectedPerson.photoUrl || selectedPerson.imageUrl || 'https://via.placeholder.com/150'" [alt]="selectedPerson.firstName">
+          <img [src]="selectedPerson.photoUrl || selectedPerson.imageUrl || 'https://ui-avatars.com/api/?name=' + selectedPerson.firstName + '+' + selectedPerson.lastName + '&background=00ffc8&color=000&size=150'" [alt]="selectedPerson.firstName" onerror="this.src='https://ui-avatars.com/api/?name=' + this.alt + '&background=00ffc8&color=000&size=150'">
           <div class="glow-ring"></div>
         </div>
         <div class="modal-title">
           <h2>{{ selectedPerson.firstName }} {{ selectedPerson.lastName }}</h2>
-          <span class="modal-role">{{ selectedPerson.role || (selectedPerson.gender === 1 ? 'Erkak' : 'Ayol') }}</span>
+          <span class="modal-role">{{ selectedPerson.role || (selectedPerson.gender === 1 ? 'Erkak' : (selectedPerson.gender === 2 ? 'Ayol' : 'Noma\'lum')) }}</span>
         </div>
       </div>
       <div class="modal-body">
-        @if (selectedPerson.birthDate) {
+        @if (selectedPerson.birthDate || selectedPerson.deathDate) {
           <div class="info-row">
             <i class="icon">📅</i>
-            <span><strong>Tug'ilgan sana:</strong> {{ selectedPerson.birthDate | date:'dd.MM.yyyy' }}</span>
+            <span>
+              <strong>Hayot yillari:</strong> 
+              {{ selectedPerson.birthDate ? (selectedPerson.birthDate | date:'dd.MM.yyyy') : '...' }} 
+              - 
+              {{ selectedPerson.isAlive ? 'Hozirgacha' : (selectedPerson.deathDate ? (selectedPerson.deathDate | date:'dd.MM.yyyy') : '...') }}
+            </span>
           </div>
         }
         @if (selectedPerson.birthPlace || selectedPerson.location) {
@@ -67,10 +46,10 @@
             <span><strong>Manzil:</strong> {{ selectedPerson.birthPlace || selectedPerson.location }}</span>
           </div>
         }
-        @if (selectedPerson.biography || selectedPerson.bio) {
+        @if (selectedPerson.description || selectedPerson.biography || selectedPerson.bio) {
           <div class="info-row">
             <i class="icon">📝</i>
-            <p class="bio-text">{{ selectedPerson.biography || selectedPerson.bio }}</p>
+            <p class="bio-text">{{ selectedPerson.description || selectedPerson.biography || selectedPerson.bio }}</p>
           </div>
         }
         @if (selectedPerson.phoneNumber) {
@@ -79,7 +58,37 @@
             <span><strong>Telefon:</strong> {{ selectedPerson.phoneNumber }}</span>
           </div>
         }
-        @if (!selectedPerson.birthDate && !selectedPerson.location && !selectedPerson.bio) {
+        @if (selectedPerson.telegramLink || selectedPerson.instagramLink) {
+          <div class="info-row">
+            <i class="icon">🔗</i>
+            <span>
+              <strong>Ijtimoiy tarmoqlar:</strong>
+              @if (selectedPerson.telegramLink) {
+                <a [href]="selectedPerson.telegramLink" target="_blank" class="social-link tg">Telegram</a>
+              }
+              @if (selectedPerson.instagramLink) {
+                <a [href]="selectedPerson.instagramLink" target="_blank" class="social-link ig">Instagram</a>
+              }
+            </span>
+          </div>
+        }
+        
+        @if (selectedPersonSpouses.length > 0) {
+          <div class="info-row spouse-info">
+            <i class="icon">💍</i>
+            <div class="spouse-list">
+              <strong>Turmush o'rtog'i:</strong>
+              @for (spouse of selectedPersonSpouses; track spouse.id) {
+                <div class="spouse-item" (click)="selectPerson(spouse); $event.stopPropagation()">
+                  <img class="spouse-avatar" [src]="spouse.photoUrl || spouse.imageUrl || 'https://ui-avatars.com/api/?name=' + spouse.firstName + '+' + spouse.lastName + '&background=ff4081&color=fff&size=50'" [alt]="spouse.firstName" onerror="this.src='https://ui-avatars.com/api/?name=' + this.alt + '&background=ff4081&color=fff&size=50'">
+                  <span>{{ spouse.firstName }} {{ spouse.lastName }}</span>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        @if (!selectedPerson.birthDate && !selectedPerson.location && !selectedPerson.bio && !selectedPerson.description && !selectedPerson.biography && !selectedPerson.telegramLink && !selectedPerson.instagramLink && selectedPersonSpouses.length === 0) {
           <div>
             <p class="empty-state">Bu inson haqida qo'shimcha ma'lumot kiritilmagan.</p>
           </div>

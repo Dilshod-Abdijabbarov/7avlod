@@ -52,7 +52,7 @@ export interface FamilyNode {
 export class FamilyService {
   private http = inject(HttpClient);
   // ASP.NET Web API manzili (O'zingiznikiga moslashtiring)
-  private apiUrl = 'https://localhost:7133/api/Person';
+  private apiUrl = 'http://localhost:7133/api/Person';
 
   // State boshqarish uchun signallar
   private personsSignal = signal<Person[]>([]);
@@ -69,7 +69,7 @@ export class FamilyService {
   // API'dan ma'lumotlarni qayta yuklash
   async refreshPersons() {
     try {
-      const data = await firstValueFrom(this.http.get<any>(`${this.apiUrl}/GetAllPersons`));
+      const data = await firstValueFrom(this.http.post<any>(`${this.apiUrl}/GetAllPersons`, {}));
 
       let personsArray: any[] = [];
 
@@ -171,6 +171,42 @@ export class FamilyService {
     });
   }
 
+  // ECharts uchun API dan daraxt ma'lumotlarini olish
+  async getEchartsTreeById(personId: string) {
+    try {
+      const data = await firstValueFrom(this.http.get<any>(`${this.apiUrl}/GetPersonById?personId=${personId}`));
+      let personsArray: any[] = [];
+      if (data && data.result) {
+        personsArray = Array.isArray(data.result) ? data.result : [data.result];
+      }
+      if (personsArray.length === 0) return null;
+
+      // Daraxtni ECharts formatiga o'tkazish
+      const mapToEchartsNode = (node: any): any => {
+        return {
+          name: `${node.firstName || ''} ${node.lastName || ''}`.trim(),
+          originalData: node, // Qo'shimcha ma'lumotlar uchun saqlab qo'yamiz
+          children: (node.children && node.children.length > 0) 
+            ? node.children.map((child: any) => mapToEchartsNode(child)) 
+            : undefined
+        };
+      };
+
+      // Agar bitta root bo'lsa, uni qaytaramiz. Ko'p bo'lsa, bitta qalbaki root yaratamiz.
+      if (personsArray.length === 1) {
+        return mapToEchartsNode(personsArray[0]);
+      } else {
+        return {
+          name: 'Sulola',
+          children: personsArray.map(p => mapToEchartsNode(p))
+        };
+      }
+    } catch (error) {
+      console.error('API dan daraxtni olishda xato:', error);
+      return null;
+    }
+  }
+
   async addPerson(person: Person) {
     const cleanPerson = this.preparePersonData(person, true);
     const res = await firstValueFrom(this.http.post<any>(`${this.apiUrl}/CreatePerson`, cleanPerson));
@@ -240,7 +276,7 @@ export class FamilyService {
   // SPOUSE (NIKOH) METODLARI
   async refreshSpouses() {
     try {
-      const spouseApiUrl = 'https://localhost:7133/api/Person';
+      const spouseApiUrl = 'http://localhost:7133/api/Person';
       const data = await firstValueFrom(this.http.get<any>(`${spouseApiUrl}/GetAllSpouses`));
       
       let spousesArray: any[] = [];
@@ -285,7 +321,7 @@ export class FamilyService {
   }
 
   async addSpouse(spouseDto: any) {
-    const spouseApiUrl = 'https://localhost:7133/api/Person';
+    const spouseApiUrl = 'http://localhost:7133/api/Person';
     const res = await firstValueFrom(this.http.post<any>(`${spouseApiUrl}/AddSpouse`, spouseDto));
     if (res && (res.result === true || res.statusCode === 200)) {
       await this.refreshSpouses();
@@ -294,7 +330,7 @@ export class FamilyService {
   }
 
   async deleteSpouse(id: string) {
-    const spouseApiUrl = 'https://localhost:7133/api/Person';
+    const spouseApiUrl = 'http://localhost:7133/api/Person';
     await firstValueFrom(this.http.delete<void>(`${spouseApiUrl}/DeleteSpouse/${id}`));
     await this.refreshSpouses();
   }
