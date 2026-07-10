@@ -16,10 +16,20 @@ export class AdminPanelComponent {
   // Signallarni to'g'ridan-to'g'ri bog'laymiz
   persons = this.familyService.persons;
   spouses = this.familyService.spouses;
+  generations = this.familyService.generations;
+
+  // Pagination signals
+  personsPageNumber = this.familyService.personsPageNumber;
+  personsPageSize = this.familyService.personsPageSize;
+  totalPersons = this.familyService.totalPersons;
+  
+  totalPages = computed(() => {
+    return Math.ceil(this.totalPersons() / this.personsPageSize());
+  });
   
   selectedPerson: Person | null = null;
   isEditing = false;
-  activeTab = signal<'people' | 'marriages' | 'linking'>('people');
+  activeTab = signal<'people' | 'marriages' | 'linking' | 'dynasty'>('people');
   
   parentSearchTerm = signal('');
   childSearchTerm = signal('');
@@ -29,6 +39,17 @@ export class AdminPanelComponent {
   // Farzand qidiruvi (Bog'lash tabi uchun)
   filteredPersonsLinking = computed(() => {
     const term = this.childSearchTerm().toLowerCase();
+    const allPersons = this.persons();
+    if (!term) return allPersons.slice(0, 10);
+    return allPersons.filter(p => 
+      `${p.firstName} ${p.lastName} ${p.pinfl}`.toLowerCase().includes(term)
+    );
+  });
+
+  // Shaxs qidiruvi (Sulolaga biriktirish uchun)
+  dynastyPersonSearchTerm = signal('');
+  filteredPersonsDynasty = computed(() => {
+    const term = this.dynastyPersonSearchTerm().toLowerCase();
     const allPersons = this.persons();
     if (!term) return allPersons.slice(0, 10);
     return allPersons.filter(p => 
@@ -123,6 +144,9 @@ export class AdminPanelComponent {
 
   editPerson(person: Person) {
     this.selectedPerson = { ...person };
+    if (!this.selectedPerson.generationId) {
+      this.selectedPerson.generationId = '';
+    }
     this.parentSearchTerm.set('');
     
     // Sanalarni input[type="date"] uchun formatlaymiz (YYYY-MM-DD)
@@ -155,7 +179,8 @@ export class AdminPanelComponent {
       telegramLink: '',
       instagramLink: '',
       description: '',
-      parentSpouseId: ''
+      parentSpouseId: '',
+      generationId: ''
     };
     this.isEditing = true;
     this.parentSearchTerm.set('');
@@ -277,5 +302,128 @@ export class AdminPanelComponent {
     } else {
       this.showNotification('Iltimos, farzand va ota-onani tanlang!', 'error');
     }
+  }
+
+  // SULOLA TABI UCHUN METODLAR VA STATE
+  linkingDynastyPersonId = '';
+  linkingDynastyId = '';
+  isEditingDynasty = false;
+  selectedDynasty: any = null;
+  
+  getDefaultExpireDate(): string {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() + 5);
+    return d.toISOString().split('T')[0];
+  }
+
+  newGeneration = {
+    name: '',
+    description: '',
+    expireDate: this.getDefaultExpireDate()
+  };
+
+  selectDynastyPerson(id: string) {
+    this.linkingDynastyPersonId = id;
+    this.dynastyPersonSearchTerm.set('');
+  }
+
+  getDynastyName(generationId?: string): string {
+    if (!generationId || generationId === 'undefined') return '-';
+    const gen = this.generations().find(g => g.id === generationId);
+    return gen ? gen.name : '-';
+  }
+
+  editDynasty(gen: any) {
+    this.selectedDynasty = { ...gen };
+    this.newGeneration = {
+      name: gen.name,
+      description: gen.description,
+      expireDate: gen.expireDate ? gen.expireDate.split('T')[0] : this.getDefaultExpireDate()
+    };
+    this.isEditingDynasty = true;
+  }
+
+  cancelDynastyEdit() {
+    this.selectedDynasty = null;
+    this.isEditingDynasty = false;
+    this.newGeneration = {
+      name: '',
+      description: '',
+      expireDate: this.getDefaultExpireDate()
+    };
+  }
+
+  async saveGeneration() {
+    if (this.newGeneration.name && this.newGeneration.description) {
+      let expDate = new Date(this.newGeneration.expireDate);
+      if (isNaN(expDate.getTime())) {
+        expDate = new Date();
+        expDate.setFullYear(expDate.getFullYear() + 5);
+      }
+      
+      const body = {
+        Id: this.isEditingDynasty ? this.selectedDynasty.id : undefined,
+        Name: this.newGeneration.name,
+        Description: this.newGeneration.description,
+        ExpireDate: expDate.toISOString()
+      };
+      
+      let res;
+      if (this.isEditingDynasty) {
+        res = await this.familyService.updateGeneration(body);
+      } else {
+        res = await this.familyService.addGeneration(body);
+      }
+
+      if (res) {
+        this.showNotification(this.isEditingDynasty ? 'Sulola muvaffaqiyatli yangilandi!' : 'Sulola muvaffaqiyatli yaratildi!');
+        this.cancelDynastyEdit();
+      }
+    } else {
+      this.showNotification('Iltimos, sulola nomi va tavsifini kiriting!', 'error');
+    }
+  }
+
+  async deleteDynasty(id: string) {
+    if (!id) return;
+    if (confirm('Rostdan ham ushbu sulolani o\'chirmoqchimisiz? Sulolaga biriktirilgan shaxslar bog\'liqligi bekor qilinadi.')) {
+      const res = await this.familyService.deleteGeneration(id);
+      if (res) {
+        this.showNotification('Sulola muvaffaqiyatli o\'chirildi!');
+      }
+    }
+  }
+
+  async saveDynastyLink() {
+    const personId = this.linkingDynastyPersonId;
+    const dynastyId = this.linkingDynastyId;
+    
+    if (personId && dynastyId && personId !== 'undefined' && dynastyId !== 'undefined') {
+      const res = await this.familyService.assignGeneration(personId, dynastyId);
+      if (res) {
+        this.showNotification('Shaxs sulolaga muvaffaqiyatli biriktirildi!');
+        this.linkingDynastyPersonId = '';
+        this.linkingDynastyId = '';
+        this.dynastyPersonSearchTerm.set('');
+      }
+    } else {
+      this.showNotification('Iltimos, shaxs va sulolani tanlang!', 'error');
+    }
+  }
+
+  // Odamlar pagination metodlari
+  async goToPersonsPage(page: number) {
+    if (page >= 0 && page < this.totalPages()) {
+      this.personsPageNumber.set(page);
+      await this.familyService.refreshPersons();
+    }
+  }
+
+  async nextPage() {
+    await this.goToPersonsPage(this.personsPageNumber() + 1);
+  }
+
+  async prevPage() {
+    await this.goToPersonsPage(this.personsPageNumber() - 1);
   }
 }

@@ -17,6 +17,9 @@
       <button class="tab-btn" [class.active]="activeTab() === 'linking'" (click)="activeTab.set('linking')">
         <span class="icon">🔗</span> Bog'lash
       </button>
+      <button class="tab-btn" [class.active]="activeTab() === 'dynasty'" (click)="activeTab.set('dynasty')">
+        <span class="icon">👑</span> Sulolalar
+      </button>
     </div>
     <div style="width: 140px;"></div>
   </div>
@@ -37,6 +40,7 @@
                 <th>Rasm</th>
                 <th>F.I.SH</th>
                 <th>PINFL</th>
+                <th>Sulola</th>
                 <th>Harakatlar</th>
               </tr>
             </thead>
@@ -49,6 +53,11 @@
                   <td>{{ person.firstName }} {{ person.lastName }}</td>
                   <td>{{ person.pinfl || '-' }}</td>
                   <td>
+                    <span class="badge" style="background: rgba(52, 152, 219, 0.1); border-color: #3498db; color: #3498db;">
+                      {{ getDynastyName(person.generationId) }}
+                    </span>
+                  </td>
+                  <td>
                     <div class="action-btns">
                       <button class="btn-edit" (click)="editPerson(person)">Tahrir</button>
                       <button class="btn-delete" (click)="deletePerson(person.id)">O'chirish</button>
@@ -58,6 +67,23 @@
               }
             </tbody>
           </table>
+
+          <!-- Pagination Controls -->
+          @if (totalPages() > 1) {
+            <div class="pagination-controls">
+              <button class="btn-page" [disabled]="personsPageNumber() === 0" (click)="prevPage()">
+                ◀ Oldingi
+              </button>
+              
+              <span class="page-info">
+                {{ personsPageNumber() + 1 }} / {{ totalPages() }}
+              </span>
+              
+              <button class="btn-page" [disabled]="personsPageNumber() === totalPages() - 1" (click)="nextPage()">
+                Keyingi ▶
+              </button>
+            </div>
+          }
         </div>
     
         @if (isEditing && selectedPerson) {
@@ -133,6 +159,16 @@
               <div class="form-group">
                 <label>Biografiya</label>
                 <textarea [(ngModel)]="selectedPerson.biography" name="biography" rows="3"></textarea>
+              </div>
+
+              <div class="form-group">
+                <label>Sulola (Shajara)</label>
+                <select [(ngModel)]="selectedPerson.generationId" name="generationId" class="form-select">
+                  <option value="">-- Sulolaga tegishli emas --</option>
+                  @for (gen of generations(); track gen.id) {
+                    <option [value]="gen.id">{{ gen.name }}</option>
+                  }
+                </select>
               </div>
     
               <div class="form-actions">
@@ -374,6 +410,141 @@
                 }
               </tbody>
             </table>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- 4. SULOLALAR TABI -->
+    @if (activeTab() === 'dynasty') {
+      <div class="tab-header">
+        <h3>👑 Sulolalar Boshqaruvi</h3>
+      </div>
+      <div class="admin-layout">
+        <!-- Sulolalar Ro'yxati -->
+        <div class="list-section glass-panel">
+          <h4>Mavjud Sulolalar</h4>
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 60px; text-align: center;">T/r</th>
+                <th>Nomi</th>
+                <th>Tavsifi</th>
+                <th>Muddati</th>
+                <th style="text-align: center;">A'zolar soni</th>
+                <th>Harakatlar</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (gen of generations(); track gen.id) {
+                <tr>
+                  <td class="row-num-cell" style="text-align: center;"></td>
+                  <td><strong>{{ gen.name }}</strong></td>
+                  <td>{{ gen.description }}</td>
+                  <td>{{ gen.expireDate ? (gen.expireDate | date:'dd.MM.yyyy') : '-' }}</td>
+                  <td style="text-align: center;">
+                    <span class="badge" style="background: rgba(46, 204, 113, 0.1); border-color: #2ecc71; color: #2ecc71;">
+                      {{ gen.personCount || 0 }} ta shaxs
+                    </span>
+                  </td>
+                  <td>
+                    <div class="action-btns">
+                      <button class="btn-edit" (click)="editDynasty(gen)">Tahrir</button>
+                      <button class="btn-delete" (click)="deleteDynasty(gen.id)">O'chirish</button>
+                    </div>
+                  </td>
+                </tr>
+              }
+              @if (generations().length === 0) {
+                <tr>
+                  <td colspan="6" style="text-align: center; opacity: 0.5; font-style: italic;">
+                    Hozircha sulolalar mavjud emas.
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Sulola Yaratish va Biriktirish Formlari -->
+        <div class="form-section glass-panel" style="display: flex; flex-direction: column; gap: 30px;">
+          <!-- 1. Yangi Sulola Yaratish -->
+          <div>
+            <h4 style="color: #3498db; margin-top: 0; margin-bottom: 15px;">
+              {{ isEditingDynasty ? '👑 Sulolani tahrirlash' : '+ Yangi Sulola Yaratish' }}
+            </h4>
+            <form (ngSubmit)="saveGeneration()">
+              <div class="form-group">
+                <label>Sulola nomi</label>
+                <input type="text" [(ngModel)]="newGeneration.name" name="dynastyName" required placeholder="Masalan: Temuriylar" class="search-input">
+              </div>
+              <div class="form-group">
+                <label>Tavsif</label>
+                <textarea [(ngModel)]="newGeneration.description" name="dynastyDesc" rows="3" required placeholder="Sulola haqida qisqacha ma'lumot..." class="search-input" style="font-family: inherit; resize: vertical;"></textarea>
+              </div>
+              <div class="form-group">
+                <label>Amal qilish muddati</label>
+                <input type="date" [(ngModel)]="newGeneration.expireDate" name="dynastyExpire" class="search-input">
+              </div>
+              <div style="display: flex; gap: 10px;">
+                @if (isEditingDynasty) {
+                  <button type="button" class="btn-cancel" style="flex: 1; height: 42px;" (click)="cancelDynastyEdit()">Bekor qilish</button>
+                }
+                <button type="submit" class="btn-save" style="flex: 1; height: 42px;">
+                  Saqlash
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Divider -->
+          <div style="border-top: 1px solid var(--glass-border);"></div>
+
+          <!-- 2. Shaxsni Sulolaga Biriktirish -->
+          <div>
+            <h4 style="color: #3498db; margin-top: 0; margin-bottom: 15px;">🔗 Shaxsni Sulolaga Biriktirish</h4>
+            
+            <div class="form-group search-wrapper">
+              <label>Shaxsni qidiring</label>
+              <div class="search-container">
+                <input type="text" 
+                       [ngModel]="dynastyPersonSearchTerm()" 
+                       (ngModelChange)="dynastyPersonSearchTerm.set($event)" 
+                       placeholder="Ism, familiya yoki PINFL..."
+                       class="search-input">
+                
+                @if (dynastyPersonSearchTerm()) {
+                  <div class="search-results">
+                    @for (p of filteredPersonsDynasty(); track p.id) {
+                      <div class="search-item" (mousedown)="selectDynastyPerson(p.id!)">
+                        <img [src]="p.photoUrl || 'https://via.placeholder.com/30'" class="mini-avatar">
+                        <span>{{ p.firstName }} {{ p.lastName }} ({{ p.pinfl || 'PINFL yo\'q' }})</span>
+                      </div>
+                    }
+                    @if (filteredPersonsDynasty().length === 0) {
+                      <div class="no-results">Topilmadi</div>
+                    }
+                  </div>
+                }
+              </div>
+              <div class="selected-badge" [class.active]="linkingDynastyPersonId">
+                ✅ Tanlangan: {{ getPersonName(linkingDynastyPersonId) }}
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Sulolani tanlang</label>
+              <select [(ngModel)]="linkingDynastyId" class="form-select">
+                <option value="">-- Sulolani tanlang --</option>
+                @for (gen of generations(); track gen.id) {
+                  <option [value]="gen.id">{{ gen.name }}</option>
+                }
+              </select>
+            </div>
+
+            <button class="btn-save" style="width: 100%; height: 42px; background: linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%); box-shadow: 0 4px 15px rgba(0, 210, 255, 0.2);" (click)="saveDynastyLink()">
+              🔗 Sulolaga biriktirish
+            </button>
           </div>
         </div>
       </div>

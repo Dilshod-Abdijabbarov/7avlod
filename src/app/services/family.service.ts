@@ -23,6 +23,7 @@ export interface Person {
   instagramLink?: string;
   createdBy?: string;
   description?: string;
+  generationId?: string;
 
   // Legacy compatibility / virtual fields
   name?: string;
@@ -61,30 +62,50 @@ export class FamilyService {
   private spousesSignal = signal<Spouse[]>([]);
   public spouses = computed(() => this.spousesSignal());
 
+  private generationsSignal = signal<any[]>([]);
+  public generations = computed(() => this.generationsSignal());
+
+  // Pagination signallari
+  public personsPageNumber = signal<number>(0);
+  public personsPageSize = signal<number>(10);
+  private totalPersonsSignal = signal<number>(0);
+  public totalPersons = computed(() => this.totalPersonsSignal());
+
   constructor() {
     this.refreshPersons();
     this.refreshSpouses();
+    this.refreshGenerations();
   }
 
   // API'dan ma'lumotlarni qayta yuklash
   async refreshPersons() {
     try {
-      const data = await firstValueFrom(this.http.post<any>(`${this.apiUrl}/GetAllPersons`, {}));
+      const pageNumber = this.personsPageNumber();
+      const pageSize = this.personsPageSize();
+
+      const data = await firstValueFrom(this.http.post<any>(`${this.apiUrl}/GetAllPersons`, {
+        PageNumber: pageNumber,
+        PageSize: pageSize
+      }));
 
       let personsArray: any[] = [];
+      let totalItems = 0;
 
       if (data) {
         if (Array.isArray(data)) {
           personsArray = data;
+          totalItems = data.length;
         } else if (typeof data === 'object') {
           // Foydalanuvchi taqdim etgan struktura: data.result.items
           if (data.result && Array.isArray(data.result.items)) {
             personsArray = data.result.items;
+            totalItems = data.result.totalItems || data.result.TotalItems || data.result.items.length;
           } else {
             // Boshqa mumkin bo'lgan formatlar uchun fallback
             const possibleArray = data.$values || data.data || data.items || data.result;
             if (Array.isArray(possibleArray)) {
               personsArray = possibleArray;
+              totalItems = possibleArray.length;
             }
           }
         }
@@ -98,9 +119,11 @@ export class FamilyService {
       }));
 
       this.personsSignal.set(normalizedPersons);
+      this.totalPersonsSignal.set(totalItems);
     } catch (error) {
       console.error('API-dan ma\'lumot olishda xato:', error);
       this.personsSignal.set([]); // Xatolik holatida bo'sh array
+      this.totalPersonsSignal.set(0);
     }
   }
 
@@ -353,6 +376,66 @@ export class FamilyService {
     const res = await firstValueFrom(this.http.put<any>(`${this.apiUrl}/AssignParents`, body));
     
     if (res && (res.result === true || res.statusCode === 200)) {
+      await this.refreshPersons();
+    }
+    return res;
+  }
+
+  // SULOLA (GENERATION) METODLARI
+  async refreshGenerations() {
+    try {
+      const res = await firstValueFrom(this.http.get<any>(`${this.apiUrl}/GetAllGenerations`));
+      let gensArray: any[] = [];
+      if (res) {
+        if (Array.isArray(res)) {
+          gensArray = res;
+        } else if (res.result && Array.isArray(res.result)) {
+          gensArray = res.result;
+        } else {
+          const possibleArray = res.$values || res.data || res.items || res.result;
+          if (Array.isArray(possibleArray)) gensArray = possibleArray;
+        }
+      }
+      this.generationsSignal.set(gensArray);
+    } catch (error) {
+      console.error('Sulolalarni yuklashda xato:', error);
+      this.generationsSignal.set([]);
+    }
+  }
+
+  async addGeneration(generationDto: any) {
+    const res = await firstValueFrom(this.http.post<any>(`${this.apiUrl}/CreateGeneration`, generationDto));
+    if (res && (res.result || res.statusCode === 200)) {
+      await this.refreshGenerations();
+    }
+    return res;
+  }
+
+  async assignGeneration(personId: string, generationId: string) {
+    const body = {
+      PersonId: personId,
+      GenerationId: generationId
+    };
+    const res = await firstValueFrom(this.http.put<any>(`${this.apiUrl}/AssignGeneration`, body));
+    if (res && (res.result === true || res.statusCode === 200)) {
+      await this.refreshPersons();
+      await this.refreshGenerations();
+    }
+    return res;
+  }
+
+  async updateGeneration(generationDto: any) {
+    const res = await firstValueFrom(this.http.put<any>(`${this.apiUrl}/UpdateGeneration`, generationDto));
+    if (res && (res.result || res.statusCode === 200)) {
+      await this.refreshGenerations();
+    }
+    return res;
+  }
+
+  async deleteGeneration(generationId: string) {
+    const res = await firstValueFrom(this.http.delete<any>(`${this.apiUrl}/DeleteGeneration?generationId=${generationId}`));
+    if (res && (res.result || res.statusCode === 200)) {
+      await this.refreshGenerations();
       await this.refreshPersons();
     }
     return res;

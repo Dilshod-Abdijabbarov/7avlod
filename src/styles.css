@@ -53,3 +53,14 @@ body {
   background: var(--accent-color); 
 }
 
+/* Theme-friendly Select Option Styles */
+select option {
+  background-color: #1e1e2e;
+  color: #ffffff;
+}
+
+[data-theme='light'] select option {
+  background-color: #ffffff;
+  color: #2c3e50;
+}
+
