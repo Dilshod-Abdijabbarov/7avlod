@@ -88,8 +88,10 @@ export class AdminPanelComponent {
       const wife = allPersons.find(p => p.id === s.wifeId);
       return {
         ...s,
-        id: s.id, // Explicitly ensure id is there
-        displayName: `${husband?.firstName || '?'} ${husband?.lastName || ''} & ${wife?.firstName || '?'} ${wife?.lastName || ''}`,
+        id: s.id,
+        displayName: s.husbandName && s.wifeName 
+          ? `${s.husbandName} & ${s.wifeName}`
+          : `${husband?.firstName || '?'} ${husband?.lastName || ''} & ${wife?.firstName || '?'} ${wife?.lastName || ''}`,
         husband,
         wife
       };
@@ -103,6 +105,32 @@ export class AdminPanelComponent {
       m.displayName.toLowerCase().includes(term)
     );
   });
+
+  private searchTimeout: any;
+
+  onParentSearchChange(term: string) {
+    this.parentSearchTerm.set(term);
+    
+    if (this.searchTimeout) {
+      clearTimeout(this.searchTimeout);
+    }
+    
+    this.searchTimeout = setTimeout(() => {
+      this.familyService.refreshSpouses(term);
+    }, 300);
+  }
+
+  onChildSearchChange(term: string) {
+    this.childSearchTerm.set(term);
+    
+    if (this.searchTimeout) {
+      clearTimeout(this.searchTimeout);
+    }
+    
+    this.searchTimeout = setTimeout(() => {
+      this.familyService.refreshPersons(term);
+    }, 300);
+  }
 
   // Yangi nikoh uchun state
   newSpouse = {
@@ -223,21 +251,49 @@ export class AdminPanelComponent {
       return '-';
     }
     
+    if (spouse.husbandName && spouse.wifeName) {
+      return `${spouse.husbandName} & ${spouse.wifeName}`;
+    }
+    
     const husband = this.persons().find(p => p.id === spouse.husbandId);
     const wife = this.persons().find(p => p.id === spouse.wifeId);
     return `${husband?.firstName || '?'} ${husband?.lastName || ''} & ${wife?.firstName || '?'} ${wife?.lastName || ''}`;
   }
 
+  private personNameCache = new Map<string, string>();
+
   getPersonName(id?: string): string {
     if (!id || id === 'undefined') return '-';
+    if (this.personNameCache.has(id)) {
+      return this.personNameCache.get(id)!;
+    }
     const p = this.persons().find(person => person.id === id);
-    return p ? `${p.firstName} ${p.lastName}` : '-';
+    if (p) {
+      const name = `${p.firstName} ${p.lastName}`;
+      this.personNameCache.set(id, name);
+      return name;
+    }
+    if (id === this.linkingChildId && this.linkingChildName) {
+      return this.linkingChildName;
+    }
+    return '-';
   }
 
-  selectLinkingChild(id: string) {
-    console.log('Farzand tanlandi:', id);
-    this.linkingChildId = id;
+  selectLinkingChild(personOrId: any) {
+    console.log('Farzand tanlandi:', personOrId);
+    if (typeof personOrId === 'string') {
+      this.linkingChildId = personOrId;
+      const p = this.persons().find(person => person.id === personOrId);
+      this.linkingChildName = p ? `${p.firstName} ${p.lastName}` : 'Tanlangan farzand';
+    } else if (personOrId) {
+      const id = personOrId.id || personOrId.Id;
+      const firstName = personOrId.firstName || personOrId.FirstName || '';
+      const lastName = personOrId.lastName || personOrId.LastName || '';
+      this.linkingChildId = id || '';
+      this.linkingChildName = `${firstName} ${lastName}`.trim() || 'Tanlangan farzand';
+    }
     this.childSearchTerm.set('');
+    this.familyService.refreshPersons('');
   }
 
   selectLinkingMarriage(marriage: any) {
@@ -268,6 +324,7 @@ export class AdminPanelComponent {
 
   // BOG'LASH TABI UCHUN METODLAR
   linkingChildId = '';
+  linkingChildName = '';
   linkingMarriageId = '';
   linkingOrder = 1;
 
@@ -294,6 +351,7 @@ export class AdminPanelComponent {
       if (res) {
         this.showNotification('Muvaffaqiyatli bog\'landi!');
         this.linkingChildId = '';
+        this.linkingChildName = '';
         this.linkingMarriageId = '';
         this.linkingOrder = 1;
         this.childSearchTerm.set('');

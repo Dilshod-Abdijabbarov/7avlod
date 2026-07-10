@@ -39,6 +39,8 @@ export interface Spouse {
   id?: string;
   husbandId?: string;
   wifeId?: string;
+  husbandName?: string;
+  wifeName?: string;
   order: number;
 }
 
@@ -77,15 +79,15 @@ export class FamilyService {
     this.refreshGenerations();
   }
 
-  // API'dan ma'lumotlarni qayta yuklash
-  async refreshPersons() {
+  async refreshPersons(searchTerm?: string) {
     try {
       const pageNumber = this.personsPageNumber();
       const pageSize = this.personsPageSize();
 
       const data = await firstValueFrom(this.http.post<any>(`${this.apiUrl}/GetAllPersons`, {
         PageNumber: pageNumber,
-        PageSize: pageSize
+        PageSize: searchTerm ? 100 : pageSize,
+        Filters: searchTerm ? { FirstName: searchTerm } : {}
       }));
 
       let personsArray: any[] = [];
@@ -297,10 +299,16 @@ export class FamilyService {
   }
 
   // SPOUSE (NIKOH) METODLARI
-  async refreshSpouses() {
+  async refreshSpouses(searchTerm?: string) {
     try {
       const spouseApiUrl = 'http://localhost:7133/api/Person';
-      const data = await firstValueFrom(this.http.get<any>(`${spouseApiUrl}/GetAllSpouses`));
+      const data = await firstValueFrom(this.http.post<any>(`${spouseApiUrl}/GetAllSpouses`, {
+        pageNumber: 0,
+        pageSize: 1000,
+        sortField: "",
+        isDescending: false,
+        filters: searchTerm ? { FirstName: searchTerm } : {}
+      }));
       
       let spousesArray: any[] = [];
       if (data) {
@@ -330,6 +338,8 @@ export class FamilyService {
           id: id,
           husbandId: s.husbandId || s.HusbandId || s.husband_id,
           wifeId: s.wifeId || s.WifeId || s.wife_id,
+          husbandName: s.husbandName || s.HusbandName || '',
+          wifeName: s.wifeName || s.WifeName || '',
           order: s.order || s.Order || s.order_number || 1
         };
       });

@@ -307,7 +307,7 @@
                 <div class="search-container">
                   <input type="text" 
                          [ngModel]="parentSearchTerm()" 
-                         (ngModelChange)="parentSearchTerm.set($event)" 
+                         (ngModelChange)="onParentSearchChange($event)" 
                          placeholder="Ota yoki onasining ismi..."
                          class="search-input">
                   
@@ -342,14 +342,14 @@
                 <div class="search-container">
                   <input type="text" 
                          [ngModel]="childSearchTerm()" 
-                         (ngModelChange)="childSearchTerm.set($event)" 
+                         (ngModelChange)="onChildSearchChange($event)" 
                          placeholder="Ism, familiya yoki PINFL..."
                          class="search-input">
                   
                   @if (childSearchTerm()) {
                     <div class="search-results">
                       @for (p of filteredPersonsLinking(); track p.id) {
-                        <div class="search-item" (mousedown)="selectLinkingChild(p.id!)">
+                        <div class="search-item" (mousedown)="selectLinkingChild(p)">
                           <img [src]="p.photoUrl || 'https://via.placeholder.com/30'" class="mini-avatar">
                           <span>{{ p.firstName }} {{ p.lastName }} ({{ p.pinfl || 'PINFL yo\'q' }})</span>
                         </div>
@@ -361,7 +361,7 @@
                   }
                 </div>
                 <div class="selected-badge" [class.active]="linkingChildId && linkingChildId !== 'undefined'">
-                  ✅ Tanlangan: {{ getPersonName(linkingChildId) }}
+                  ✅ Tanlangan: {{ linkingChildName }}
                 </div>
               </div>
             </div>
