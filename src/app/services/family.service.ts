@@ -61,6 +61,9 @@ export class FamilyService {
   private personsSignal = signal<Person[]>([]);
   public persons = computed(() => this.personsSignal());
 
+  private linkedPersonsSignal = signal<Person[]>([]);
+  public linkedPersons = computed(() => this.linkedPersonsSignal());
+
   private spousesSignal = signal<Spouse[]>([]);
   public spouses = computed(() => this.spousesSignal());
 
@@ -73,21 +76,63 @@ export class FamilyService {
   private totalPersonsSignal = signal<number>(0);
   public totalPersons = computed(() => this.totalPersonsSignal());
 
+  // Odamlar uchun qidiruv signallari
+  public searchFirstName = signal<string>('');
+  public searchLastName = signal<string>('');
+  public searchMiddleName = signal<string>('');
+
+  // Bog'langanlar uchun pagination signallari
+  public linkedPageNumber = signal<number>(0);
+  public linkedPageSize = signal<number>(10);
+  private totalLinkedPersonsSignal = signal<number>(0);
+  public totalLinkedPersons = computed(() => this.totalLinkedPersonsSignal());
+
+  // Nikohlar (Spouses) uchun pagination signallari
+  public spousesPageNumber = signal<number>(0);
+  public spousesPageSize = signal<number>(5);
+  private totalSpousesSignal = signal<number>(0);
+  public totalSpouses = computed(() => this.totalSpousesSignal());
+
   constructor() {
     this.refreshPersons();
     this.refreshSpouses();
     this.refreshGenerations();
+    this.refreshLinkedPersons();
   }
 
-  async refreshPersons(searchTerm?: string) {
+  async refreshPersons(filters?: string | Record<string, string>) {
     try {
       const pageNumber = this.personsPageNumber();
       const pageSize = this.personsPageSize();
 
+      let activeFilters: Record<string, string> = {};
+      let isSingleSearch = false;
+      
+      if (typeof filters === 'string') {
+        if (filters.trim()) {
+          activeFilters = { FirstName: filters.trim() };
+          isSingleSearch = true;
+        }
+      } else if (filters) {
+        Object.entries(filters).forEach(([key, val]) => {
+          if (val && val.trim()) {
+            activeFilters[key] = val.trim();
+          }
+        });
+      } else {
+        // Avtomatik ravishda service signallaridagi qidiruv shartlarini olamiz
+        const fn = this.searchFirstName();
+        const ln = this.searchLastName();
+        const mn = this.searchMiddleName();
+        if (fn) activeFilters['FirstName'] = fn;
+        if (ln) activeFilters['LastName'] = ln;
+        if (mn) activeFilters['MiddleName'] = mn;
+      }
+
       const data = await firstValueFrom(this.http.post<any>(`${this.apiUrl}/GetAllPersons`, {
         PageNumber: pageNumber,
-        PageSize: searchTerm ? 100 : pageSize,
-        Filters: searchTerm ? { FirstName: searchTerm } : {}
+        PageSize: isSingleSearch ? 100 : pageSize,
+        Filters: activeFilters
       }));
 
       let personsArray: any[] = [];
@@ -126,6 +171,159 @@ export class FamilyService {
       console.error('API-dan ma\'lumot olishda xato:', error);
       this.personsSignal.set([]); // Xatolik holatida bo'sh array
       this.totalPersonsSignal.set(0);
+    }
+  }
+
+  async refreshLinkedPersons() {
+    try {
+      const pageNumber = this.linkedPageNumber();
+      const pageSize = this.linkedPageSize();
+
+      const data = await firstValueFrom(this.http.post<any>(`${this.apiUrl}/GetAllPersons`, {
+        PageNumber: pageNumber,
+        PageSize: pageSize,
+        Filters: { hasParentSpouse: "true" }
+      }));
+
+      let personsArray: any[] = [];
+      let totalItems = 0;
+
+      if (data) {
+        if (Array.isArray(data)) {
+          personsArray = data;
+          totalItems = data.length;
+        } else if (typeof data === 'object') {
+          if (data.result && Array.isArray(data.result.items)) {
+            personsArray = data.result.items;
+            totalItems = data.result.totalItems || data.result.TotalItems || data.result.items.length;
+          } else {
+            const possibleArray = data.$values || data.data || data.items || data.result;
+            if (Array.isArray(possibleArray)) {
+              personsArray = possibleArray;
+              totalItems = possibleArray.length;
+            }
+          }
+        }
+      }
+
+      const normalizedPersons = personsArray.map(p => ({
+        ...p,
+        id: p.id || p.Id,
+        parentSpouseId: p.parentSpouseId || p.ParentSpouseId
+      }));
+
+      this.linkedPersonsSignal.set(normalizedPersons);
+      this.totalLinkedPersonsSignal.set(totalItems);
+    } catch (error) {
+      console.error("API-dan bog'langanlarni olishda xato:", error);
+      this.linkedPersonsSignal.set([]);
+      this.totalLinkedPersonsSignal.set(0);
+    }
+  }
+
+  async getChildrenOfMarriage(marriageId: string): Promise<Person[]> {
+    try {
+      const data = await firstValueFrom(this.http.post<any>(`${this.apiUrl}/GetAllPersons`, {
+        PageNumber: 0,
+        PageSize: 100,
+        Filters: { ParentSpouseId: marriageId }
+      }));
+
+      let personsArray: any[] = [];
+      if (data) {
+        if (Array.isArray(data)) {
+          personsArray = data;
+        } else if (data.result && Array.isArray(data.result.items)) {
+          personsArray = data.result.items;
+        } else {
+          const possibleArray = data.$values || data.data || data.items || data.result;
+          if (Array.isArray(possibleArray)) {
+            personsArray = possibleArray;
+          }
+        }
+      }
+
+      return personsArray.map(p => ({
+        ...p,
+        id: p.id || p.Id,
+        parentSpouseId: p.parentSpouseId || p.ParentSpouseId
+      })).sort((a, b) => (a.order || 0) - (b.order || 0));
+    } catch (error) {
+      console.error("API-dan bolalarni olishda xato:", error);
+      return [];
+    }
+  }
+
+  async searchPersons(term: string): Promise<Person[]> {
+    console.log('FamilyService.searchPersons chaqirildi, term:', term);
+    if (!term || term.trim().length < 2) return [];
+    try {
+      const payload = {
+        PageNumber: 0,
+        PageSize: 20,
+        Filters: { FirstName: term }
+      };
+      console.log('GetAllPersons API ga yuborilayotgan payload:', payload);
+      const data = await firstValueFrom(this.http.post<any>(`${this.apiUrl}/GetAllPersons`, payload));
+      console.log('GetAllPersons API dan kelgan javob:', data);
+
+      let personsArray: any[] = [];
+      if (data) {
+        if (Array.isArray(data)) {
+          personsArray = data;
+        } else if (data.result && Array.isArray(data.result.items)) {
+          personsArray = data.result.items;
+        } else {
+          const possibleArray = data.$values || data.data || data.items || data.result;
+          if (Array.isArray(possibleArray)) {
+            personsArray = possibleArray;
+          }
+        }
+      }
+
+      return personsArray.map(p => ({
+        ...p,
+        id: p.id || p.Id,
+        parentSpouseId: p.parentSpouseId || p.ParentSpouseId
+      }));
+    } catch (error) {
+      console.error("Search persons API xatoligi:", error);
+      return [];
+    }
+  }
+
+  async searchPersonsByGender(term: string, gender: number): Promise<Person[]> {
+    if (!term || term.trim().length < 2) return [];
+    try {
+      const payload = {
+        PageNumber: 0,
+        PageSize: 20,
+        Filters: { FirstName: term, Gender: gender.toString() }
+      };
+      const data = await firstValueFrom(this.http.post<any>(`${this.apiUrl}/GetAllPersons`, payload));
+
+      let personsArray: any[] = [];
+      if (data) {
+        if (Array.isArray(data)) {
+          personsArray = data;
+        } else if (data.result && Array.isArray(data.result.items)) {
+          personsArray = data.result.items;
+        } else {
+          const possibleArray = data.$values || data.data || data.items || data.result;
+          if (Array.isArray(possibleArray)) {
+            personsArray = possibleArray;
+          }
+        }
+      }
+
+      return personsArray.map(p => ({
+        ...p,
+        id: p.id || p.Id,
+        parentSpouseId: p.parentSpouseId || p.ParentSpouseId
+      }));
+    } catch (error) {
+      console.error(`Search persons by gender ${gender} API xatoligi:`, error);
+      return [];
     }
   }
 
@@ -239,6 +437,7 @@ export class FamilyService {
     // Agar javob muvaffaqiyatli bo'lsa (result true yoki statusCode 200), ro'yxatni yangilaymiz
     if (res && (res.result === true || res.statusCode === 200)) {
       await this.refreshPersons();
+      await this.refreshLinkedPersons();
     }
     return res;
   }
@@ -250,6 +449,7 @@ export class FamilyService {
     // Agar javob muvaffaqiyatli bo'lsa (result true yoki statusCode 200), ro'yxatni yangilaymiz
     if (res && (res.result === true || res.statusCode === 200)) {
       await this.refreshPersons();
+      await this.refreshLinkedPersons();
     }
     return res;
   }
@@ -296,31 +496,42 @@ export class FamilyService {
   async deletePerson(id: string) {
     await firstValueFrom(this.http.delete<void>(`${this.apiUrl}/${id}`));
     await this.refreshPersons();
+    await this.refreshLinkedPersons();
   }
 
   // SPOUSE (NIKOH) METODLARI
   async refreshSpouses(searchTerm?: string) {
     try {
       const spouseApiUrl = 'http://localhost:7133/api/Person';
+      const pageNumber = this.spousesPageNumber();
+      const pageSize = this.spousesPageSize();
+
       const data = await firstValueFrom(this.http.post<any>(`${spouseApiUrl}/GetAllSpouses`, {
-        pageNumber: 0,
-        pageSize: 1000,
+        pageNumber: pageNumber,
+        pageSize: pageSize,
         sortField: "",
         isDescending: false,
         filters: searchTerm ? { FirstName: searchTerm } : {}
       }));
       
       let spousesArray: any[] = [];
+      let totalItems = 0;
       if (data) {
         if (Array.isArray(data)) {
           spousesArray = data;
+          totalItems = data.length;
         } else if (data.result && Array.isArray(data.result.items)) {
           spousesArray = data.result.items;
+          totalItems = data.result.totalItems || data.result.TotalItems || data.result.items.length;
         } else {
           const possibleArray = data.$values || data.data || data.items || data.result;
-          if (Array.isArray(possibleArray)) spousesArray = possibleArray;
+          if (Array.isArray(possibleArray)) {
+            spousesArray = possibleArray;
+            totalItems = possibleArray.length;
+          }
         }
       }
+      this.totalSpousesSignal.set(totalItems);
       
       console.log('API-dan kelgan nikohlar:', spousesArray);
       if (spousesArray.length > 0) {
@@ -387,6 +598,7 @@ export class FamilyService {
     
     if (res && (res.result === true || res.statusCode === 200)) {
       await this.refreshPersons();
+      await this.refreshLinkedPersons();
     }
     return res;
   }
@@ -447,6 +659,7 @@ export class FamilyService {
     if (res && (res.result || res.statusCode === 200)) {
       await this.refreshGenerations();
       await this.refreshPersons();
+      await this.refreshLinkedPersons();
     }
     return res;
   }

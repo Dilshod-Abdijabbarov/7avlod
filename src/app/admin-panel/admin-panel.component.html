@@ -8,16 +8,16 @@
   <div class="admin-header">
     <h2>Admin Panel</h2>
     <div class="admin-tabs">
-      <button class="tab-btn" [class.active]="activeTab() === 'people'" (click)="activeTab.set('people')">
+      <button class="tab-btn" [class.active]="activeTab() === 'people'" (click)="selectTab('people')">
         <span class="icon">👥</span> Odamlar
       </button>
-      <button class="tab-btn" [class.active]="activeTab() === 'marriages'" (click)="activeTab.set('marriages')">
+      <button class="tab-btn" [class.active]="activeTab() === 'marriages'" (click)="selectTab('marriages')">
         <span class="icon">💍</span> Nikohlar
       </button>
-      <button class="tab-btn" [class.active]="activeTab() === 'linking'" (click)="activeTab.set('linking')">
+      <button class="tab-btn" [class.active]="activeTab() === 'linking'" (click)="selectTab('linking')">
         <span class="icon">🔗</span> Bog'lash
       </button>
-      <button class="tab-btn" [class.active]="activeTab() === 'dynasty'" (click)="activeTab.set('dynasty')">
+      <button class="tab-btn" [class.active]="activeTab() === 'dynasty'" (click)="selectTab('dynasty')">
         <span class="icon">👑</span> Sulolalar
       </button>
     </div>
@@ -37,20 +37,56 @@
           <table>
             <thead>
               <tr>
-                <th>Rasm</th>
-                <th>F.I.SH</th>
-                <th>PINFL</th>
+                <th style="width: 50px; text-align: center;">T/r</th>
+                <th style="width: 70px; text-align: center;">Rasm</th>
+                <th>Familiya</th>
+                <th>Ism</th>
+                <th>Otasining ismi</th>
+                <th style="width: 150px;">PINFL</th>
                 <th>Sulola</th>
-                <th>Harakatlar</th>
+                <th style="width: 180px; text-align: center;">Harakatlar</th>
+              </tr>
+              <tr>
+                <th></th>
+                <th></th>
+                <th>
+                  <input type="text" 
+                         [ngModel]="searchLastName()" 
+                         (ngModelChange)="searchLastName.set($event); onPeopleSearchChange()" 
+                         placeholder="Qidirish..." 
+                         class="table-search-input">
+                </th>
+                <th>
+                  <input type="text" 
+                         [ngModel]="searchFirstName()" 
+                         (ngModelChange)="searchFirstName.set($event); onPeopleSearchChange()" 
+                         placeholder="Qidirish..." 
+                         class="table-search-input">
+                </th>
+                <th>
+                  <input type="text" 
+                         [ngModel]="searchMiddleName()" 
+                         (ngModelChange)="searchMiddleName.set($event); onPeopleSearchChange()" 
+                         placeholder="Qidirish..." 
+                         class="table-search-input">
+                </th>
+                <th></th>
+                <th></th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
-              @for (person of persons(); track person.id) {
+              @for (person of persons(); track person.id; let idx = $index) {
                 <tr>
-                  <td>
+                  <td style="text-align: center; font-weight: 700; color: #3498db;">
+                    {{ personsPageNumber() * personsPageSize() + idx + 1 }}
+                  </td>
+                  <td style="text-align: center;">
                     <img [src]="person.photoUrl || 'https://via.placeholder.com/50'" class="avatar">
                   </td>
-                  <td>{{ person.firstName }} {{ person.lastName }}</td>
+                  <td>{{ person.lastName || '-' }}</td>
+                  <td>{{ person.firstName || '-' }}</td>
+                  <td>{{ person.middleName || '-' }}</td>
                   <td>{{ person.pinfl || '-' }}</td>
                   <td>
                     <span class="badge" style="background: rgba(52, 152, 219, 0.1); border-color: #3498db; color: #3498db;">
@@ -58,7 +94,7 @@
                     </span>
                   </td>
                   <td>
-                    <div class="action-btns">
+                    <div class="action-btns" style="justify-content: center;">
                       <button class="btn-edit" (click)="editPerson(person)">Tahrir</button>
                       <button class="btn-delete" (click)="deletePerson(person.id)">O'chirish</button>
                     </div>
@@ -197,19 +233,19 @@
                 <div class="search-container">
                   <input type="text" 
                          [ngModel]="husbandSearchTerm()" 
-                         (ngModelChange)="husbandSearchTerm.set($event)" 
+                         (ngModelChange)="onHusbandSearch($event)" 
                          placeholder="Ism, familiya yoki PINFL..."
                          class="search-input">
                   
                   @if (husbandSearchTerm()) {
                     <div class="search-results">
-                      @for (p of filteredHusbands(); track p.id) {
-                        <div class="search-item" (mousedown)="selectHusband(p.id!)">
+                      @for (p of husbandSearchPersons(); track p.id) {
+                        <div class="search-item" (mousedown)="selectHusband(p)">
                           <img [src]="p.photoUrl || 'https://via.placeholder.com/30'" class="mini-avatar">
                           <span>{{ p.firstName }} {{ p.lastName }} ({{ p.pinfl || 'PINFL yo\'q' }})</span>
                         </div>
                       }
-                      @if (filteredHusbands().length === 0) {
+                      @if (husbandSearchPersons().length === 0) {
                         <div class="no-results">Topilmadi</div>
                       }
                     </div>
@@ -229,19 +265,19 @@
                 <div class="search-container">
                   <input type="text" 
                          [ngModel]="wifeSearchTerm()" 
-                         (ngModelChange)="wifeSearchTerm.set($event)" 
+                         (ngModelChange)="onWifeSearch($event)" 
                          placeholder="Ism, familiya yoki PINFL..."
                          class="search-input">
                   
                   @if (wifeSearchTerm()) {
                     <div class="search-results">
-                      @for (p of filteredWives(); track p.id) {
-                        <div class="search-item" (mousedown)="selectWife(p.id!)">
+                      @for (p of wifeSearchPersons(); track p.id) {
+                        <div class="search-item" (mousedown)="selectWife(p)">
                           <img [src]="p.photoUrl || 'https://via.placeholder.com/30'" class="mini-avatar">
                           <span>{{ p.firstName }} {{ p.lastName }} ({{ p.pinfl || 'PINFL yo\'q' }})</span>
                         </div>
                       }
-                      @if (filteredWives().length === 0) {
+                      @if (wifeSearchPersons().length === 0) {
                         <div class="no-results">Topilmadi</div>
                       }
                     </div>
@@ -272,11 +308,13 @@
                 </tr>
               </thead>
               <tbody>
-                @for (spouse of spouses(); track spouse.id) {
+                @for (spouse of spouses(); track spouse.id; let idx = $index) {
                   <tr>
-                    <td class="row-num-cell" style="text-align: center;"></td>
-                    <td>{{ getPersonName(spouse.husbandId) }}</td>
-                    <td>{{ getPersonName(spouse.wifeId) }}</td>
+                    <td style="text-align: center; font-weight: 700; color: #3498db;">
+                      {{ spousesPageNumber() * spousesPageSize() + idx + 1 }}
+                    </td>
+                    <td>{{ spouse.husbandName || getPersonName(spouse.husbandId) }}</td>
+                    <td>{{ spouse.wifeName || getPersonName(spouse.wifeId) }}</td>
                     <td style="text-align: center;">
                       <button class="btn-delete" (click)="deleteSpouse(spouse.id)">O'chirish</button>
                     </td>
@@ -284,6 +322,23 @@
                 }
               </tbody>
             </table>
+
+            <!-- Nikohlar pagination paneli -->
+            @if (totalSpousesPages() > 1) {
+              <div class="pagination-controls">
+                <button class="btn-page" [disabled]="spousesPageNumber() === 0" (click)="prevSpousesPage()">
+                  ◀ Oldingi
+                </button>
+                
+                <span class="page-info">
+                  {{ spousesPageNumber() + 1 }} / {{ totalSpousesPages() }}
+                </span>
+                
+                <button class="btn-page" [disabled]="spousesPageNumber() === totalSpousesPages() - 1" (click)="nextSpousesPage()">
+                  Keyingi ▶
+                </button>
+              </div>
+            }
           </div>
         </div>
       </div>
@@ -382,35 +437,54 @@
             </div>
           </div>
 
-          <div class="current-links" style="margin-top: 40px;">
-            <h4>Mavjud Bog'lanishlar</h4>
-            <table>
-              <thead>
-                <tr>
-                  <th style="width: 60px; text-align: center;">T/r</th>
-                  <th style="width: 25%;">Farzand</th>
-                  <th>Ota-onasi</th>
-                  <th style="width: 120px; text-align: center;">Tartib</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (p of persons(); track p.id) {
-                  @if (p.parentSpouseId) {
+          @if (linkingMarriageId) {
+            <div class="current-links" style="margin-top: 40px;">
+              <h4>Tanlangan Ota-onaning Farzandlari ({{ getParentName(linkingMarriageId) }})</h4>
+              @if (currentMarriageChildren().length === 0) {
+                <p style="opacity: 0.6; font-style: italic; margin-top: 15px;">Ushbu ota-onaga hali farzandlar bog'lanmagan.</p>
+              } @else {
+                <table>
+                  <thead>
                     <tr>
-                      <td class="row-num-cell" style="text-align: center;"></td>
-                      <td>{{ p.firstName }} {{ p.lastName }}</td>
-                      <td>{{ getParentName(p.parentSpouseId) }}</td>
-                      <td style="text-align: center;">
-                        <span class="badge" style="background: rgba(52, 152, 219, 0.1); border-color: #3498db;">
-                          {{ p.order || '-' }}-farzand
-                        </span>
-                      </td>
+                      <th style="width: 60px; text-align: center;">T/r</th>
+                      <th style="width: 35%;">Farzand</th>
+                      <th style="width: 150px; text-align: center;">Tartib</th>
+                      <th style="width: 250px; text-align: center;">Tartibni O'zgartirish</th>
                     </tr>
-                  }
-                }
-              </tbody>
-            </table>
-          </div>
+                  </thead>
+                  <tbody>
+                    @for (p of currentMarriageChildren(); track p.id; let idx = $index; let first = $first; let last = $last) {
+                      <tr>
+                        <td style="text-align: center;">{{ idx + 1 }}</td>
+                        <td>{{ p.firstName }} {{ p.lastName }}</td>
+                        <td style="text-align: center;">
+                          <span class="badge" style="background: rgba(52, 152, 219, 0.1); border-color: #3498db; color: #3498db; padding: 4px 10px; border-radius: 4px; border: 1px solid;">
+                            {{ p.order || '-' }}-farzand
+                          </span>
+                        </td>
+                        <td style="text-align: center;">
+                          <div style="display: flex; justify-content: center; gap: 8px;">
+                            <button class="btn-page" 
+                                    [disabled]="first" 
+                                    (click)="moveChild(idx, 'up')" 
+                                    style="padding: 4px 12px; font-size: 12px; margin: 0;">
+                              ▲ Tepaga
+                            </button>
+                            <button class="btn-page" 
+                                    [disabled]="last" 
+                                    (click)="moveChild(idx, 'down')" 
+                                    style="padding: 4px 12px; font-size: 12px; margin: 0;">
+                              ▼ Pastga
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              }
+            </div>
+          }
         </div>
       </div>
     }
@@ -509,19 +583,19 @@
               <div class="search-container">
                 <input type="text" 
                        [ngModel]="dynastyPersonSearchTerm()" 
-                       (ngModelChange)="dynastyPersonSearchTerm.set($event)" 
+                       (ngModelChange)="onDynastyPersonSearch($event)" 
                        placeholder="Ism, familiya yoki PINFL..."
                        class="search-input">
                 
                 @if (dynastyPersonSearchTerm()) {
                   <div class="search-results">
-                    @for (p of filteredPersonsDynasty(); track p.id) {
-                      <div class="search-item" (mousedown)="selectDynastyPerson(p.id!)">
+                    @for (p of dynastyPersonsResults(); track p.id) {
+                      <div class="search-item" (mousedown)="selectDynastyPerson(p)">
                         <img [src]="p.photoUrl || 'https://via.placeholder.com/30'" class="mini-avatar">
                         <span>{{ p.firstName }} {{ p.lastName }} ({{ p.pinfl || 'PINFL yo\'q' }})</span>
                       </div>
                     }
-                    @if (filteredPersonsDynasty().length === 0) {
+                    @if (dynastyPersonsResults().length === 0) {
                       <div class="no-results">Topilmadi</div>
                     }
                   </div>

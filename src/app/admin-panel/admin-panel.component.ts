@@ -22,14 +22,39 @@ export class AdminPanelComponent {
   personsPageNumber = this.familyService.personsPageNumber;
   personsPageSize = this.familyService.personsPageSize;
   totalPersons = this.familyService.totalPersons;
+
+  // Odamlar qidiruvi uchun signallar
+  searchFirstName = this.familyService.searchFirstName;
+  searchLastName = this.familyService.searchLastName;
+  searchMiddleName = this.familyService.searchMiddleName;
   
   totalPages = computed(() => {
     return Math.ceil(this.totalPersons() / this.personsPageSize());
+  });
+
+  // Linked pagination signals
+  linkedPersons = this.familyService.linkedPersons;
+  linkedPageNumber = this.familyService.linkedPageNumber;
+  linkedPageSize = this.familyService.linkedPageSize;
+  totalLinkedPersons = this.familyService.totalLinkedPersons;
+  
+  totalLinkedPages = computed(() => {
+    return Math.ceil(this.totalLinkedPersons() / this.linkedPageSize());
+  });
+
+  // Spouses pagination signals
+  spousesPageNumber = this.familyService.spousesPageNumber;
+  spousesPageSize = this.familyService.spousesPageSize;
+  totalSpouses = this.familyService.totalSpouses;
+  
+  totalSpousesPages = computed(() => {
+    return Math.ceil(this.totalSpouses() / this.spousesPageSize());
   });
   
   selectedPerson: Person | null = null;
   isEditing = false;
   activeTab = signal<'people' | 'marriages' | 'linking' | 'dynasty'>('people');
+  currentMarriageChildren = signal<Person[]>([]);
   
   parentSearchTerm = signal('');
   childSearchTerm = signal('');
@@ -46,36 +71,48 @@ export class AdminPanelComponent {
     );
   });
 
-  // Shaxs qidiruvi (Sulolaga biriktirish uchun)
+  // Shaxs qidiruvi (Sulolaga biriktirish uchun - backend orqali)
   dynastyPersonSearchTerm = signal('');
-  filteredPersonsDynasty = computed(() => {
-    const term = this.dynastyPersonSearchTerm().toLowerCase();
-    const allPersons = this.persons();
-    if (!term) return allPersons.slice(0, 10);
-    return allPersons.filter(p => 
-      `${p.firstName} ${p.lastName} ${p.pinfl}`.toLowerCase().includes(term)
-    );
-  });
+  dynastyPersonsResults = signal<Person[]>([]);
 
-  // Er qidiruvi (Nikohlar tabi uchun)
-  filteredHusbands = computed(() => {
-    const term = this.husbandSearchTerm().toLowerCase();
-    const allPersons = this.persons().filter(p => p.gender === 1);
-    if (!term) return allPersons.slice(0, 10);
-    return allPersons.filter(p => 
-      `${p.firstName} ${p.lastName} ${p.pinfl}`.toLowerCase().includes(term)
-    );
-  });
+  async onDynastyPersonSearch(term: string) {
+    console.log('onDynastyPersonSearch chaqirildi, term:', term);
+    this.dynastyPersonSearchTerm.set(term);
+    if (term.trim().length >= 2) {
+      console.log('Backenddan qidirish boshlandi, term:', term);
+      const results = await this.familyService.searchPersons(term);
+      console.log('Backenddan olingan qidiruv natijalari:', results);
+      this.dynastyPersonsResults.set(results);
+    } else {
+      this.dynastyPersonsResults.set([]);
+    }
+  }
 
-  // Xotin qidiruvi (Nikohlar tabi uchun)
-  filteredWives = computed(() => {
-    const term = this.wifeSearchTerm().toLowerCase();
-    const allPersons = this.persons().filter(p => p.gender === 2);
-    if (!term) return allPersons.slice(0, 10);
-    return allPersons.filter(p => 
-      `${p.firstName} ${p.lastName} ${p.pinfl}`.toLowerCase().includes(term)
-    );
-  });
+  // Er qidiruvi (Nikohlar tabi uchun - backend orqali)
+  husbandSearchPersons = signal<Person[]>([]);
+  
+  async onHusbandSearch(term: string) {
+    this.husbandSearchTerm.set(term);
+    if (term.trim().length >= 2) {
+      const results = await this.familyService.searchPersonsByGender(term, 1);
+      this.husbandSearchPersons.set(results);
+    } else {
+      this.husbandSearchPersons.set([]);
+    }
+  }
+
+  // Xotin qidiruvi (Nikohlar tabi uchun - backend orqali)
+  wifeSearchPersons = signal<Person[]>([]);
+
+  async onWifeSearch(term: string) {
+    this.wifeSearchTerm.set(term);
+    if (term.trim().length >= 2) {
+      const results = await this.familyService.searchPersonsByGender(term, 2);
+      this.wifeSearchPersons.set(results);
+    } else {
+      this.wifeSearchPersons.set([]);
+    }
+  }
 
   // Ota-ona (Nikoh) qidiruvi
   filteredMarriages = computed(() => {
@@ -120,6 +157,18 @@ export class AdminPanelComponent {
     }, 300);
   }
 
+  peopleSearchTimeout: any;
+
+  onPeopleSearchChange() {
+    this.personsPageNumber.set(0);
+    if (this.peopleSearchTimeout) {
+      clearTimeout(this.peopleSearchTimeout);
+    }
+    this.peopleSearchTimeout = setTimeout(() => {
+      this.familyService.refreshPersons();
+    }, 300);
+  }
+
   onChildSearchChange(term: string) {
     this.childSearchTerm.set(term);
     
@@ -139,14 +188,20 @@ export class AdminPanelComponent {
     order: 1
   };
 
-  selectHusband(id: string) {
+  selectHusband(person: Person) {
+    const id = person.id!;
     this.newSpouse.husbandId = id;
+    this.personNameCache.set(id, `${person.firstName} ${person.lastName}`);
     this.husbandSearchTerm.set('');
+    this.husbandSearchPersons.set([]);
   }
 
-  selectWife(id: string) {
+  selectWife(person: Person) {
+    const id = person.id!;
     this.newSpouse.wifeId = id;
+    this.personNameCache.set(id, `${person.firstName} ${person.lastName}`);
     this.wifeSearchTerm.set('');
+    this.wifeSearchPersons.set([]);
   }
 
   async saveSpouse() {
@@ -224,13 +279,21 @@ export class AdminPanelComponent {
       // Ensure name is populated if still used in some parts of the UI
       this.selectedPerson.name = `${this.selectedPerson.firstName} ${this.selectedPerson.lastName}`.trim();
       
+      let res;
       if (this.selectedPerson.id) {
-        await this.familyService.updatePerson(this.selectedPerson);
+        res = await this.familyService.updatePerson(this.selectedPerson);
       } else {
-        await this.familyService.addPerson(this.selectedPerson);
+        res = await this.familyService.addPerson(this.selectedPerson);
       }
-      this.selectedPerson = null;
-      this.isEditing = false;
+      
+      if (res && (res.result === true || res.statusCode === 200)) {
+        this.selectedPerson = null;
+        this.isEditing = false;
+        this.showNotification('Muvaffaqiyatli saqlandi!');
+      } else {
+        const errorMsg = res?.error || 'Saqlashda xatolik yuz berdi!';
+        this.showNotification(errorMsg, 'error');
+      }
     }
   }
 
@@ -296,7 +359,18 @@ export class AdminPanelComponent {
     this.familyService.refreshPersons('');
   }
 
-  selectLinkingMarriage(marriage: any) {
+  async loadMarriageChildren(marriageId: string) {
+    if (marriageId) {
+      const children = await this.familyService.getChildrenOfMarriage(marriageId);
+      this.currentMarriageChildren.set(children);
+      this.linkingOrder = children.length + 1;
+    } else {
+      this.currentMarriageChildren.set([]);
+      this.linkingOrder = 1;
+    }
+  }
+
+  async selectLinkingMarriage(marriage: any) {
     const id = marriage.id || marriage.Id;
     console.log('Nikoh tanlashga harakat:', marriage);
     if (!id) {
@@ -307,6 +381,7 @@ export class AdminPanelComponent {
     console.log('Nikoh tanlandi:', id);
     this.linkingMarriageId = id;
     this.parentSearchTerm.set('');
+    await this.loadMarriageChildren(id);
   }
 
   selectParent(spouseId: string) {
@@ -352,14 +427,57 @@ export class AdminPanelComponent {
         this.showNotification('Muvaffaqiyatli bog\'landi!');
         this.linkingChildId = '';
         this.linkingChildName = '';
-        this.linkingMarriageId = '';
-        this.linkingOrder = 1;
         this.childSearchTerm.set('');
-        this.parentSearchTerm.set('');
+        await this.loadMarriageChildren(marriageId);
       }
     } else {
       this.showNotification('Iltimos, farzand va ota-onani tanlang!', 'error');
     }
+  }
+
+  async moveChild(index: number, direction: 'up' | 'down') {
+    const children = [...this.currentMarriageChildren()];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+
+    if (targetIndex < 0 || targetIndex >= children.length) return;
+
+    // Swap elements
+    const temp = children[index];
+    children[index] = children[targetIndex];
+    children[targetIndex] = temp;
+
+    // Update orders based on index
+    children.forEach((child, idx) => {
+      child.order = idx + 1;
+    });
+
+    // Optimistically set UI
+    this.currentMarriageChildren.set(children);
+
+    const marriageId = this.linkingMarriageId;
+    try {
+      const child1 = children[index];
+      const child2 = children[targetIndex];
+
+      if (child1.id && child2.id) {
+        await this.familyService.assignParents({
+          spouseId: marriageId,
+          personId: child1.id,
+          order: child1.order
+        });
+        await this.familyService.assignParents({
+          spouseId: marriageId,
+          personId: child2.id,
+          order: child2.order
+        });
+        this.showNotification('Farzandlar tartibi muvaffaqiyatli o\'zgartirildi!');
+      }
+    } catch (e) {
+      console.error('Tartibni saqlashda xato:', e);
+      this.showNotification('Xatolik yuz berdi!', 'error');
+    }
+
+    await this.loadMarriageChildren(marriageId);
   }
 
   // SULOLA TABI UCHUN METODLAR VA STATE
@@ -380,9 +498,12 @@ export class AdminPanelComponent {
     expireDate: this.getDefaultExpireDate()
   };
 
-  selectDynastyPerson(id: string) {
+  selectDynastyPerson(person: Person) {
+    const id = person.id!;
     this.linkingDynastyPersonId = id;
+    this.personNameCache.set(id, `${person.firstName} ${person.lastName}`);
     this.dynastyPersonSearchTerm.set('');
+    this.dynastyPersonsResults.set([]);
   }
 
   getDynastyName(generationId?: string): string {
@@ -483,5 +604,66 @@ export class AdminPanelComponent {
 
   async prevPage() {
     await this.goToPersonsPage(this.personsPageNumber() - 1);
+  }
+
+  // Tab tanlash va yangilash
+  selectTab(tab: 'people' | 'marriages' | 'linking' | 'dynasty') {
+    this.activeTab.set(tab);
+    if (tab === 'linking') {
+      this.linkedPageNumber.set(0);
+      this.familyService.refreshLinkedPersons();
+      this.linkingMarriageId = '';
+      this.currentMarriageChildren.set([]);
+      this.linkingOrder = 1;
+      this.parentSearchTerm.set('');
+      this.childSearchTerm.set('');
+      this.linkingChildId = '';
+      this.linkingChildName = '';
+    } else if (tab === 'people') {
+      this.personsPageNumber.set(0);
+      this.searchFirstName.set('');
+      this.searchLastName.set('');
+      this.searchMiddleName.set('');
+      this.familyService.refreshPersons();
+    } else if (tab === 'marriages') {
+      this.spousesPageNumber.set(0);
+      this.familyService.refreshSpouses();
+      this.husbandSearchTerm.set('');
+      this.wifeSearchTerm.set('');
+      this.husbandSearchPersons.set([]);
+      this.wifeSearchPersons.set([]);
+    }
+  }
+
+  // Bog'langanlar pagination metodlari
+  async goToLinkedPage(page: number) {
+    if (page >= 0 && page < this.totalLinkedPages()) {
+      this.linkedPageNumber.set(page);
+      await this.familyService.refreshLinkedPersons();
+    }
+  }
+
+  async nextLinkedPage() {
+    await this.goToLinkedPage(this.linkedPageNumber() + 1);
+  }
+
+  async prevLinkedPage() {
+    await this.goToLinkedPage(this.linkedPageNumber() - 1);
+  }
+
+  // Nikohlar pagination metodlari
+  async goToSpousesPage(page: number) {
+    if (page >= 0 && page < this.totalSpousesPages()) {
+      this.spousesPageNumber.set(page);
+      await this.familyService.refreshSpouses();
+    }
+  }
+
+  async nextSpousesPage() {
+    await this.goToSpousesPage(this.spousesPageNumber() + 1);
+  }
+
+  async prevSpousesPage() {
+    await this.goToSpousesPage(this.spousesPageNumber() - 1);
   }
 }
