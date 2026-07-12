@@ -407,7 +407,7 @@ export class FamilyService {
       // Daraxtni ECharts formatiga o'tkazish
       const mapToEchartsNode = (node: any): any => {
         return {
-          name: `${node.firstName || ''} ${node.lastName || ''}`.trim(),
+          name: (node.firstName || '').trim(),
           originalData: node, // Qo'shimcha ma'lumotlar uchun saqlab qo'yamiz
           children: (node.children && node.children.length > 0) 
             ? node.children.map((child: any) => mapToEchartsNode(child)) 

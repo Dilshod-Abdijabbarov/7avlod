@@ -2,10 +2,18 @@
   @if (isLoading()) {
     <div class="empty-state">Ma'lumotlar yuklanmoqda...</div>
   } @else if (chartOptions()) {
+    <!-- Export Button -->
+    <div style="position: absolute; top: 20px; right: 20px; z-index: 100;">
+      <button (click)="downloadTreeAsHtml()" class="btn-export">
+        📥 HTML yuklab olish (Offline ko'rish uchun)
+      </button>
+    </div>
+    
     <div 
       echarts 
       [options]="chartOptions()" 
       (chartClick)="onChartClick($event)"
+      (chartInit)="onChartInit($event)"
       class="echarts-tree">
     </div>
   } @else {
